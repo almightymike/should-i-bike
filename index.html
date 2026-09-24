@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
     <title>Should I Bike? | Miramar Cycling Dashboard</title>
-    <meta name="description" content="A live three-day cycling outlook for Miramar, Wellington, with the best ride window, route notes, wind and rain forecasts.">
+    <meta name="description" content="A live three-day cycling outlook with the best ride window, route notes, wind and rain forecasts for your chosen location.">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
   </head>
@@ -13,9 +13,9 @@
     <main class="wrap">
       <header class="page-head">
         <div>
-          <p class="eyebrow">Should I Bike? · Miramar, Wellington</p>
-          <h1>Miramar Cycling Dashboard</h1>
-          <p class="sub">A three-day ride check. Morning: 06:00–11:00. Afternoon: 12:00–17:00. Times are local to Wellington.</p>
+          <p class="eyebrow">Should I Bike? · <span id="current-location">Miramar, Wellington, New Zealand</span></p>
+          <h1 id="page-title">Miramar Cycling Dashboard</h1>
+          <p class="sub">A three-day ride check. Morning: 06:00–11:00. Afternoon: 12:00–17:00. Times are local to the selected place.</p>
         </div>
         <div class="toolbar">
           <span class="pill" id="updated">Checking forecast…</span>
@@ -23,12 +23,21 @@
         </div>
       </header>
 
+      <section class="location-picker" aria-label="Choose ride location">
+        <label for="location-query">Choose a ride location</label>
+        <div class="search-wrap">
+          <input id="location-query" type="search" placeholder="Start typing a city or suburb" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="location-options" aria-expanded="false" aria-describedby="location-hint">
+          <ul id="location-options" role="listbox" hidden></ul>
+        </div>
+        <p class="location-hint" id="location-hint">Type at least 3 letters, then select a suggestion. Your last choice is remembered on this device.</p>
+      </section>
+
       <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
       <section class="grid top-grid" id="highlights" aria-label="Ride highlights"></section>
       <section class="grid days" id="forecast-grid" aria-label="Three-day ride outlook" aria-live="polite"></section>
       <section class="final" id="final-cards" aria-label="Final call and forecast notes"></section>
 
-      <p class="footer-note">Forecast: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0), approximate Miramar coordinates. Ratings are planning rules, not safety guarantees. Route notes compare broad exposure. Check live conditions before riding.</p>
+      <p class="footer-note">Forecast: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0), approximate selected coordinates. Location suggestions: GeoNames via Open-Meteo. Ratings are planning rules, not safety guarantees. Route notes compare broad exposure. Check live conditions before riding.</p>
     </main>
   </body>
 </html>
