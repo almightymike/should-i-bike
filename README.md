@@ -1,6 +1,6 @@
 # Should I Bike?
 
-Three-day ride outlook. The dashboard opens with Miramar, Wellington, and lets you select other locations from suggestions while typing. It remembers the last selection in this browser. The page follows the original card layout: best overall, best backup, weakest option, three day cards with morning and afternoon slots, and a final call. It shows live conditions and a simple rating based on wind, gusts, rain probability, predicted rain and thunderstorms.
+Three-day ride outlook. On first visit, Cloudflare estimates the visitor's city from their IP address without a device-location permission prompt. If no estimate is available, the dashboard uses Miramar, Wellington. A manually selected location takes priority on later visits to the same browser. The page follows the original card layout: best overall, best backup, weakest option, three day cards with morning and afternoon slots, and a final call. It shows live conditions and a simple rating based on wind, gusts, rain probability, predicted rain and thunderstorms.
 
 ## Run locally
 
@@ -8,7 +8,9 @@ Open `index.html` in a browser. No build step or dependencies are needed. The br
 
 ## Deploy to Cloudflare Pages
 
-Connect this GitHub repository to Cloudflare Pages. Set the production branch to `main`, choose no framework preset, leave the build command blank, and use `.` as the build output directory. The site will publish after the pull request is merged into `main`.
+Connect this GitHub repository to Cloudflare Pages. Set the production branch to `main`, choose no framework preset, use `exit 0` as the build command, and use `.` as the build output directory. The site will publish after the pull request is merged into `main`. The build command is recommended by Cloudflare for static sites using Pages Functions.
+
+The `/api/location` Pages Function reads Cloudflare's approximate IP location and returns only a city, region, country code, coordinates and timezone with `Cache-Control: private, no-store`. It does not return the IP address. `_routes.json` limits Function invocations to that route. If it returns no usable coordinates, the page uses Miramar. Test the endpoint on the deployed domain: `/api/location` should return a small JSON object or an empty 204 response, rather than 404. Approximate IP location can be wrong for VPN and mobile-network users. Manual location search is always available; **Use approximate location** clears a saved manual choice and detects again.
 
 The deployed site uses Cloudflare Access. Keep the production `pages.dev` address and preview addresses covered by separate Access applications. The GitHub repository is public, so do not commit private data or API keys.
 
@@ -16,7 +18,7 @@ If the live site shows an older version after a merge, open the Pages project's 
 
 ## Forecast logic
 
-- Default data comes from Open-Meteo at approximately 41.317° S, 174.817° E. Other locations come from Open-Meteo's GeoNames-based geocoding search. Each forecast uses local time at the chosen location. Suggestions appear after three typed characters; keyboard arrows and Enter also select a result.
+- Miramar fallback data comes from Open-Meteo at approximately 41.317° S, 174.817° E. Search locations come from Open-Meteo's GeoNames-based geocoding service. Each forecast uses local time at the chosen location. Suggestions appear after three typed characters; keyboard arrows and Enter also select a result.
 - Morning covers 06:00–11:00 and afternoon covers 12:00–17:00. Passed hours are not rated. After 17:00, the dashboard shows the next three days.
 - Each window displays the maximum hourly wind, gust and rain probability, the sum of predicted hourly rain, and average temperature.
 - Favourable means wind below 20 km/h, gusts below 35 km/h, rain chance below 30%, and rain below 0.4 mm.
