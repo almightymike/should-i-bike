@@ -49,6 +49,10 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .slot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .slot-title { font-size: 1.1rem; font-weight: 750; }
 .rating { font-size: 1rem; font-weight: 800; text-align: right; }
+.score-text { max-width: 145px; font-size: 1.1rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.score-text.good { color: #bbf7d0; }
+.score-text.caution { color: #fde68a; }
+.score-text.avoid { color: #fecdd3; }
 .score-badge { display: inline-flex; flex: none; align-items: center; gap: 8px; padding: 6px 10px; min-width: 108px; border: 1px solid; border-radius: 14px; font-variant-numeric: tabular-nums; }
 .score-badge.good { background: #123d2a; border-color: #4ade80; color: #bbf7d0; }
 .score-badge.caution { background: #493413; border-color: #fbbf24; color: #fde68a; }
