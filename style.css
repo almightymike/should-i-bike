@@ -75,6 +75,7 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .score-total { font-size: .85rem; font-weight: 750; letter-spacing: 0; }
 .score-label { max-width: 92px; font-size: .7rem; font-weight: 750; line-height: 1.1; }
 .slot-line { margin-top: 8px; color: #cbd5e1; font-size: .9rem; }
+.ride-out { margin-top: 9px; color: #bfdbfe; font-weight: 750; font-size: .94rem; }
 .conditions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.16); border-radius: 16px; }
 .condition { font-size: .88rem; min-width: 0; }
 .condition span { color: #cbd5e1; }
