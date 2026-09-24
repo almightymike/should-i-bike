@@ -24,6 +24,18 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .refresh { cursor: pointer; color: #f8fafc; background: #273954; border: 1px solid rgba(255,255,255,.2); border-radius: 10px; padding: 9px 13px; }
 .refresh:hover, .refresh:focus-visible { background: #375174; }
 .refresh:disabled { opacity: .6; cursor: wait; }
+.location-picker { max-width: 540px; margin: 14px 0 20px; }
+.location-picker label { display: block; margin-bottom: 8px; font-size: .92rem; font-weight: 750; }
+.search-wrap { position: relative; }
+#location-query { width: 100%; min-height: 44px; padding: 10px 13px; font: inherit; color: #f8fafc; background: #1c2a40; border: 1px solid #64748b; border-radius: 12px; }
+#location-query::placeholder { color: #bac8d9; }
+#location-query:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+#location-options { position: absolute; z-index: 10; top: calc(100% + 5px); left: 0; right: 0; max-height: 280px; overflow-y: auto; margin: 0; padding: 5px; list-style: none; background: #1c2a40; border: 1px solid #64748b; border-radius: 12px; box-shadow: 0 18px 38px rgba(0,0,0,.4); }
+#location-options[hidden] { display: none; }
+#location-options li { margin: 0; }
+#location-options button { display: block; width: 100%; border: 0; border-radius: 8px; padding: 10px 11px; text-align: left; color: #f8fafc; background: transparent; cursor: pointer; }
+#location-options button:hover, #location-options button:focus-visible, #location-options button.active { background: #375174; outline: none; }
+.location-hint { margin: 7px 0 0; color: #cbd5e1; font-size: .82rem; }
 .status { color: #cbd5e1; min-height: 24px; margin: 12px 0 18px; font-size: .9rem; }
 .status.warning { border-left: 4px solid #f59e0b; border-radius: 12px; background: rgba(245,158,11,.11); color: #fde68a; padding: 12px 14px; }
 .grid { display: grid; gap: 16px; }
