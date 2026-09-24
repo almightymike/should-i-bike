@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102c28">
+    <title>Should I Bike?</title>
+    <meta name="description" content="A simple place to check ride conditions before heading out.">
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top">Should I Bike?</a>
+      <span class="location">Miramar, Wellington</span>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <p class="eyebrow">Ride planning</p>
+        <h1 id="hero-title">A better call before you roll.</h1>
+        <p class="intro">Check the weather, wind and route before deciding whether to ride. This is the starting point for a three-day cycling forecast.</p>
+        <a class="button" href="#checklist">Use the ride checklist</a>
+      </section>
+
+      <section class="notice" aria-labelledby="notice-title">
+        <div class="notice-icon" aria-hidden="true">i</div>
+        <div>
+          <h2 id="notice-title">Live forecast coming later</h2>
+          <p>This starter site does not fetch weather data or recommend a ride yet. Check a current forecast before heading out.</p>
+        </div>
+      </section>
+
+      <section class="checklist" id="checklist" aria-labelledby="checklist-title">
+        <div class="section-heading">
+          <p class="eyebrow">Before you leave</p>
+          <h2 id="checklist-title">Ride checklist</h2>
+          <p>Use these prompts with a current forecast. Your selections stay in this browser only until you close or refresh the page.</p>
+        </div>
+        <div class="check-grid">
+          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Wind</strong><small>Check sustained wind and gusts along the route.</small></span></label>
+          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Rain</strong><small>Check timing, intensity and road conditions.</small></span></label>
+          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Visibility</strong><small>Consider daylight, fog and your lights.</small></span></label>
+          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Route</strong><small>Choose a route that suits the conditions.</small></span></label>
+        </div>
+        <p class="progress" id="progress" aria-live="polite">0 of 4 checks reviewed.</p>
+      </section>
+    </main>
+
+    <footer>Should I Bike? · Built for thoughtful rides from Miramar.</footer>
+  </body>
+</html>
