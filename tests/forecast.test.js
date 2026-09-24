@@ -63,9 +63,10 @@ test("Cloudflare location response is private and falls back when metadata is mi
     latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
 });
 
-test("after the afternoon window, show tomorrow and the following two days", () => {
+test("after the last two-hour night start, show tomorrow and the following two days", () => {
   const hourly = { time: ["2026-09-24T00:00", "2026-09-25T00:00", "2026-09-26T00:00", "2026-09-27T00:00"] };
-  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 20 }), ["2026-09-25", "2026-09-26", "2026-09-27"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 21 }), ["2026-09-24", "2026-09-25", "2026-09-26"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 22 }), ["2026-09-25", "2026-09-26", "2026-09-27"]);
 });
 
 test("rating limits include gusts and rain even when mean wind is light", () => {
@@ -101,6 +102,28 @@ test("today's window uses only future full forecast hours", () => {
   const result = summariseWindow(hourly, "2026-09-24", morning, { date: "2026-09-24", hour: 9 });
   assert.deepEqual(result.hours, [10]);
   assert.equal(result.rating, "good");
+  assert.equal(result.rideOutHour, null);
+});
+
+test("ride-out time picks the best consecutive two-hour stretch within the window", () => {
+  const hourly = fixture();
+  hourly.wind_gusts_10m = [45, 46, 20, 19, 21];
+  const result = summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 });
+  assert.equal(result.score, 2);
+  assert.equal(result.rideOutHour, 8);
+  hourly.temperature_2m = [8, 8, 9, 12, 12];
+  assert.equal(summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 }).rideOutHour, 9);
+  hourly.temperature_2m.fill(8);
+  assert.equal(summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 }).rideOutHour, null);
+  const night = { name: "Night", hours: [18, 19, 20, 21, 22, 23] };
+  const nightData = fixture();
+  nightData.time = night.hours.map((hour) => "2026-09-25T" + hour + ":00");
+  for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
+    nightData[field] = night.hours.map(() => ({ temperature_2m: 14, precipitation_probability: 10, precipitation: 0,
+      wind_speed_10m: 10, wind_gusts_10m: 20, wind_direction_10m: 0, weather_code: 1 })[field]);
+  }
+  assert.equal(summariseWindow(nightData, "2026-09-25", night, { date: "2026-09-25", hour: 21 }).rideOutHour, 22);
+  assert.equal(summariseWindow(nightData, "2026-09-25", night, { date: "2026-09-25", hour: 22 }).rideOutHour, null);
 });
 
 test("dashboard ranks complete future windows and renders the reference card sections", () => {
@@ -116,7 +139,9 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.highlights, /Best backup/);
   assert.match(result.highlights, /Weakest option/);
   assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
-  assert.equal((result.html.match(/class="slot good"/g) || []).length, 6);
+  assert.equal((result.html.match(/class="slot good"/g) || []).length, 7);
+  assert.match(result.html, /Night/);
+  assert.match(result.highlights, /Ride out: 05:00/);
   assert.match(result.final, /Final call/);
   assert.match(result.html, /rating score-text good" aria-label="Ride score 5 out of 5, Favourable"/);
   assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5, Favourable"/);
@@ -124,14 +149,18 @@ test("dashboard ranks complete future windows and renders the reference card sec
     { name: "Paris", admin1: "Île-de-France", country: "France", country_code: "FR",
       latitude: 48.85, longitude: 2.35, timezone: "Europe/Paris" });
   assert.doesNotMatch(elsewhere.html, /Evans Bay|Seatoun|Miramar/);
-  assert.match(elsewhere.html, /Consider a local route/);
+  assert.match(elsewhere.html, /Head into the N wind first, then return with a tailwind/);
+  const wellington = renderForecast(hourly, { date: "2026-09-24", hour: 20 },
+    { name: "Wellington", admin1: "Wellington Region", country: "New Zealand", country_code: "NZ",
+      latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
+  assert.match(wellington.html, /Oriental Bay \/ Evans Bay/);
   hourly.wind_gusts_10m.fill(36);
   const cautious = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(cautious.html, /rating score-text caution" aria-label="Ride score 3 out of 5, Use caution"/);
   hourly.wind_gusts_10m.fill(55);
   const unsafe = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(unsafe.highlights, /Best overall<\/div><div class="headline">No ride recommended/);
-  assert.match(unsafe.final, /All complete upcoming windows score 1\/5/);
+  assert.match(unsafe.final, /No complete upcoming window has a suitable 2-hour start/);
   assert.match(unsafe.html, /rating score-text avoid" aria-label="Ride score 1 out of 5, Avoid exposed routes"/);
   assert.doesNotMatch(unsafe.highlights.split('Best backup')[0], /score-badge/);
 });

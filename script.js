@@ -4,9 +4,12 @@ const DEFAULT_LOCATION = { name: "Miramar", admin1: "Wellington", country: "New 
 const STORAGE_KEY = "should-i-bike-location";
 const FORECAST_API = "https://api.open-meteo.com/v1/forecast";
 const GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
+const RIDE_HOURS = 2;
+const RIDE_MIN_TEMP_C = 12;
 const WINDOWS = [
-  { name: "Morning", hours: [6, 7, 8, 9, 10], label: "06:00–11:00" },
-  { name: "Afternoon", hours: [12, 13, 14, 15, 16], label: "12:00–17:00" }
+  { name: "Morning", hours: [5, 6, 7, 8, 9, 10, 11], label: "05:00–11:59" },
+  { name: "Afternoon", hours: [12, 13, 14, 15, 16, 17], label: "12:00–17:59" },
+  { name: "Night", hours: [18, 19, 20, 21, 22, 23], label: "18:00–23:59" }
 ];
 const FIELDS = ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"];
 
@@ -27,6 +30,10 @@ function locationLabel(location) {
 function isMiramar(location) {
   return location.name.toLowerCase() === "miramar" && location.country_code === "NZ" &&
     location.admin1.toLowerCase().includes("wellington");
+}
+
+function isWellingtonCity(location) {
+  return location.country_code === "NZ" && location.name.toLowerCase() === "wellington";
 }
 
 function validLocation(location) {
@@ -85,7 +92,8 @@ function datesToShow(hourly, clock) {
   const dates = [...new Set(hourly.time.map((stamp) => stamp.slice(0, 10)))];
   const start = dates.indexOf(clock.date);
   if (start < 0) throw new Error("Forecast dates do not include today in Wellington.");
-  const offset = clock.hour >= 17 ? 1 : 0;
+  // After 22:00 no two full forecast hours remain before midnight.
+  const offset = clock.hour >= 22 ? 1 : 0;
   const selected = dates.slice(start + offset, start + offset + 3);
   if (selected.length < 3) throw new Error("The forecast has fewer than three upcoming days.");
   return selected;
@@ -136,8 +144,28 @@ function routeFor(rating, direction, location) {
     if (rating === "caution") return "Shorter sheltered Miramar / Seatoun loop. Check wind from " + direction + ".";
     return "Evans Bay / Oriental Bay loop is an option. Check open sections for wind from " + direction + ".";
   }
-  if (rating === "caution") return "Prefer a short sheltered route and check wind from " + direction + ".";
-  return "Consider a local route. Check open sections for wind from " + direction + ".";
+  if (isWellingtonCity(location)) return rating === "caution" ?
+    "Prefer a shorter sheltered city loop over the exposed waterfront. Check wind from " + direction + "." :
+    "Oriental Bay / Evans Bay is an option. Check the open foreshore for wind from " + direction + ".";
+  if (rating === "caution") return "Keep the loop short. Use sheltered streets and avoid open coasts or ridges in wind from " +
+    direction + ".";
+  return "Head into the " + direction + " wind first, then return with a tailwind. Check local road conditions.";
+}
+
+function statsForRows(rows) {
+  return {
+    wind: Math.max(...rows.map((row) => row.wind_speed_10m)),
+    gust: Math.max(...rows.map((row) => row.wind_gusts_10m)),
+    rainChance: Math.max(...rows.map((row) => row.precipitation_probability)),
+    rain: rows.reduce((sum, row) => sum + Math.max(row.precipitation, 0), 0),
+    temp: rows.reduce((sum, row) => sum + row.temperature_2m, 0) / rows.length,
+    direction: prevailingDirection(rows),
+    thunder: rows.some((row) => row.weather_code >= 95)
+  };
+}
+
+function weatherBurden(stats) {
+  return stats.gust * 2 + stats.wind + stats.rainChance + stats.rain * 20;
 }
 
 function summariseWindow(hourly, date, window, clock) {
@@ -154,16 +182,23 @@ function summariseWindow(hourly, date, window, clock) {
     rows.push(Object.fromEntries(FIELDS.map((field) => [field, hourly[field][index]])));
   }
 
-  const stats = {
-    wind: Math.max(...rows.map((row) => row.wind_speed_10m)),
-    gust: Math.max(...rows.map((row) => row.wind_gusts_10m)),
-    rainChance: Math.max(...rows.map((row) => row.precipitation_probability)),
-    rain: rows.reduce((sum, row) => sum + Math.max(row.precipitation, 0), 0),
-    temp: rows.reduce((sum, row) => sum + row.temperature_2m, 0) / rows.length,
-    direction: prevailingDirection(rows),
-    thunder: rows.some((row) => row.weather_code >= 95)
-  };
-  return { state: "ready", stats, rating: ratingFor(stats), score: scoreFor(stats), hours: futureHours };
+  const stats = statsForRows(rows);
+  const starts = [];
+  for (let i = 0; i + RIDE_HOURS <= rows.length; i++) {
+    if (futureHours[i + RIDE_HOURS - 1] !== futureHours[i] + RIDE_HOURS - 1) continue;
+    const rideRows = rows.slice(i, i + RIDE_HOURS);
+    if (rideRows.some((row) => row.temperature_2m < RIDE_MIN_TEMP_C)) continue;
+    const pair = statsForRows(rideRows);
+    if (scoreFor(pair) > 1) starts.push({ hour: futureHours[i], score: scoreFor(pair), burden: weatherBurden(pair) });
+  }
+  starts.sort((a, b) => b.score - a.score || a.burden - b.burden || a.hour - b.hour);
+  return { state: "ready", stats, rating: ratingFor(stats), score: scoreFor(stats), hours: futureHours,
+    rideOutHour: scoreFor(stats) > 1 ? starts[0]?.hour ?? null : null };
+}
+
+function rideOutLabel(result) {
+  return result.rideOutHour == null ? "No suitable 2-hour start at 12°C or warmer" :
+    "Ride out: " + String(result.rideOutHour).padStart(2, "0") + ":00";
 }
 
 function dateLabel(date) {
@@ -182,18 +217,19 @@ function scoreBadge(result) {
 
 function windowHtml(result, window, location) {
   if (result.state !== "ready") {
-    const message = result.state === "passed" ? "This ride window has passed in Wellington." : "/inco: Hourly forecast data is missing. No rating shown.";
+    const message = result.state === "passed" ? "This ride window has passed." : "/inco: Hourly forecast data is missing. No rating shown.";
     return '<section class="slot unavailable"><div class="slot-head"><span class="slot-title">' + window.name + '</span><span class="rating">' +
       (result.state === "passed" ? "Past" : "Unavailable") + '</span></div><div class="slot-line">' + window.label + '</div><p class="note">' + message + '</p></section>';
   }
   const stats = result.stats;
   const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
   const time = result.hours.length < window.hours.length ? "Remaining: " + String(result.hours[0]).padStart(2, "0") + ":00–" +
-    String(result.hours.at(-1) + 1).padStart(2, "0") + ":00" : window.label;
+    String(result.hours.at(-1)).padStart(2, "0") + ":59" : window.label;
   return '<section class="slot ' + result.rating + '"><div class="slot-head"><span class="slot-title">' + window.name +
     '</span><span class="rating score-text ' + result.rating + '" aria-label="Ride score ' + result.score + ' out of 5, ' +
     titles[result.rating] + '">' + result.score + '/5 · ' + titles[result.rating] +
     '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
+    '<div class="ride-out">' + rideOutLabel(result) + '</div>' +
     '<div class="conditions"><div class="condition"><span>Temp:</span> ' + Math.round(stats.temp) + '°C</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
@@ -205,8 +241,7 @@ function windowHtml(result, window, location) {
 }
 
 function rankWindow(entry) {
-  const stats = entry.result.stats;
-  return stats.gust * 2 + stats.wind + stats.rainChance + stats.rain * 20;
+  return weatherBurden(entry.result.stats);
 }
 
 function highlightHtml(label, entry, location, emphasis = false, emptyText = "No comparable window", emptyNote = "Check the day cards for passed or incomplete windows.") {
@@ -216,6 +251,7 @@ function highlightHtml(label, entry, location, emphasis = false, emptyText = "No
   return '<article class="card' + (emphasis ? ' best' : '') + '"><div class="label">' + label + '</div>' +
     '<div class="summary-head"><div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' + scoreBadge(entry.result) + '</div>' +
     '<div class="meta">' + entry.window.label + ' · ' + reasonFor(stats, entry.result.rating) + '</div>' +
+    '<div class="ride-out">' + rideOutLabel(entry.result) + '</div>' +
     '<div class="chips"><span class="chip">' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h</span>' +
     '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain ' + Math.round(stats.rainChance) + '%</span></div>' +
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location) + '</p></article>';
@@ -233,29 +269,29 @@ function renderForecast(hourly, clock, location = DEFAULT_LOCATION) {
       return windowHtml(result, window, location);
     }).join("");
     return '<article class="card day-card"><div class="day-title"><div><h2>' + dateLabel(date) + '</h2>' +
-      '<p class="meta">' + (date === clock.date ? "Today in Wellington" : "Morning and afternoon outlook") + '</p></div>' +
+      '<p class="meta">' + (date === clock.date ? "Today" : "Morning, afternoon and night outlook") + '</p></div>' +
       '<span class="badge">' + (date === clock.date ? "Today" : "Upcoming") + '</span></div>' + slots + '</article>';
   });
   const ranked = entries.slice().sort((a, b) => b.result.score - a.result.score || rankWindow(a) - rankWindow(b));
-  const rideOptions = ranked.filter((entry) => entry.result.score > 1);
+  const rideOptions = ranked.filter((entry) => entry.result.score > 1 && entry.result.rideOutHour != null);
   const best = rideOptions[0];
   const backup = rideOptions[1];
   const weakest = ranked.length > 1 ? ranked.at(-1) : null;
   const highlights = highlightHtml("Best overall", best, location, true, entries.length ? "No ride recommended" : "Forecast incomplete",
-    entries.length ? "Every complete window is 1/5. Check again later." : "/inco: No complete upcoming window can be rated.") +
+    entries.length ? "No complete window has a suitable 2-hour start. Check again later." : "/inco: No complete upcoming window can be rated.") +
     highlightHtml("Best backup", backup, location, false, best ? "No backup available" : "No ride recommended",
-      best ? "No second ride option scores above 1/5." : "No complete ride option scores above 1/5.") +
+      best ? "No second ride option has a suitable 2-hour start." : "No complete ride option has a suitable 2-hour start.") +
     highlightHtml("Weakest option", weakest, location);
   const final = '<article class="card"><div class="label">Final call</div><div class="headline">' +
-    (best ? dateLabel(best.date) + ' · ' + best.window.name + ' · ' + best.result.score + '/5' :
+    (best ? dateLabel(best.date) + ' · ' + best.window.name + ' · ' + rideOutLabel(best.result) + ' · ' + best.result.score + '/5' :
       entries.length ? "No ride recommended" : "Forecast incomplete") +
     '</div><p class="meta">' + (best ? reasonFor(best.result.stats, best.result.rating) +
     (backup ? ' Backup: ' + dateLabel(backup.date) + ' ' + backup.window.name + ' (' + backup.result.score + '/5).' : '') :
-    entries.length ? 'All complete upcoming windows score 1/5. Avoid exposed routes and check again later.' :
+    entries.length ? 'No complete upcoming window has a suitable 2-hour start. Check again later.' :
       '/inco: No complete upcoming window can be rated.') + '</p></article>' +
     '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast from Open-Meteo for the selected location. ' +
     'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Each window uses the strongest wind and gust, highest rain chance, and total predicted rain. ' +
-    'Check current conditions and route exposure before leaving.</p></article>';
+    'Ride out is the best two-hour start inside each window with a rating above 1/5 and both hours at least 12°C. Night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
   return { html: cards.join(""), highlights, final, incomplete };
 }
 
