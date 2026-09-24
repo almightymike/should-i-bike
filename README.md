@@ -12,6 +12,8 @@ Connect this GitHub repository to Cloudflare Pages. Set the production branch to
 
 The deployed site uses Cloudflare Access. Keep the production `pages.dev` address and preview addresses covered by separate Access applications. The GitHub repository is public, so do not commit private data or API keys.
 
+If the live site shows an older version after a merge, open the Pages project's Deployments tab and compare the Production deployment commit with GitHub `main`. Retrying an old deployment republishes that old commit. Check Settings > Builds for the connected repository, production branch and automatic deployments, then check the Cloudflare Workers and Pages GitHub app's repository access before triggering a fresh commit on `main`.
+
 ## Forecast logic
 
 - Data comes from Open-Meteo at approximately 41.317° S, 174.817° E, using `Pacific/Auckland` time.
