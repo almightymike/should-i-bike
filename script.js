@@ -100,7 +100,7 @@ function datesToShow(hourly, clock) {
 }
 
 function compass(degrees) {
-  const names = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const names = ["North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"];
   return names[Math.round(((degrees % 360) + 360) % 360 / 45) % 8];
 }
 
