@@ -34,6 +34,8 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .card h2, .card h3 { margin: 0; letter-spacing: -.03em; }
 .label { margin-bottom: 9px; }
 .headline { font-size: 1.55rem; font-weight: 750; letter-spacing: -.035em; line-height: 1.18; }
+.summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.summary-head .headline { min-width: 0; }
 .meta { color: #cbd5e1; margin: 8px 0 0; font-size: .94rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .chip { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); border-radius: 999px; padding: 7px 10px; font-size: .86rem; }
@@ -47,6 +49,13 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .slot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .slot-title { font-size: 1.1rem; font-weight: 750; }
 .rating { font-size: 1rem; font-weight: 800; text-align: right; }
+.score-badge { display: inline-flex; flex: none; align-items: center; gap: 8px; padding: 6px 10px; min-width: 108px; border: 1px solid; border-radius: 14px; font-variant-numeric: tabular-nums; }
+.score-badge.good { background: #123d2a; border-color: #4ade80; color: #bbf7d0; }
+.score-badge.caution { background: #493413; border-color: #fbbf24; color: #fde68a; }
+.score-badge.avoid { background: #4a1f25; border-color: #fb7185; color: #fecdd3; }
+.score-number { font-size: 1.9rem; font-weight: 850; line-height: 1; letter-spacing: -.06em; white-space: nowrap; }
+.score-total { font-size: .85rem; font-weight: 750; letter-spacing: 0; }
+.score-label { max-width: 92px; font-size: .7rem; font-weight: 750; line-height: 1.1; }
 .slot-line { margin-top: 8px; color: #cbd5e1; font-size: .9rem; }
 .conditions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.16); border-radius: 16px; }
 .condition { font-size: .88rem; min-width: 0; }
@@ -68,6 +77,9 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
   .pill { white-space: normal; }
   .final { grid-template-columns: 1fr; }
   .conditions { gap: 8px 6px; }
+  .summary-head { align-items: center; }
+  .score-badge { min-width: 98px; gap: 6px; padding: 5px 7px; }
+  .score-number { font-size: 1.65rem; }
 }
 @media print {
   :root { color: #111827; background: white; }

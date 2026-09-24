@@ -78,10 +78,15 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
   assert.equal((result.html.match(/class="slot good"/g) || []).length, 6);
   assert.match(result.final, /Final call/);
-  assert.match(result.html, /5\/5 · Favourable/);
+  assert.match(result.html, /score-badge good" aria-label="Ride score 5 out of 5, Favourable"/);
+  assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5, Favourable"/);
+  hourly.wind_gusts_10m.fill(36);
+  const cautious = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
+  assert.match(cautious.html, /score-badge caution" aria-label="Ride score 3 out of 5, Use caution"/);
   hourly.wind_gusts_10m.fill(55);
   const unsafe = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(unsafe.highlights, /Best overall<\/div><div class="headline">No ride recommended/);
   assert.match(unsafe.final, /All complete upcoming windows score 1\/5/);
-  assert.match(unsafe.html, /1\/5 · Avoid exposed routes/);
+  assert.match(unsafe.html, /score-badge avoid" aria-label="Ride score 1 out of 5, Avoid exposed routes"/);
+  assert.doesNotMatch(unsafe.highlights.split('Best backup')[0], /score-badge/);
 });

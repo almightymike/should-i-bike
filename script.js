@@ -101,6 +101,14 @@ function dateLabel(date) {
     .format(new Date(date + "T00:00:00Z"));
 }
 
+function scoreBadge(result) {
+  const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
+  const title = titles[result.rating];
+  return '<span class="score-badge ' + result.rating + '" aria-label="Ride score ' + result.score + ' out of 5, ' + title + '">' +
+    '<span class="score-number">' + result.score + '<span class="score-total">/5</span></span>' +
+    '<span class="score-label">' + title + '</span></span>';
+}
+
 function windowHtml(result, window) {
   if (result.state !== "ready") {
     const message = result.state === "passed" ? "This ride window has passed in Wellington." : "/inco: Hourly forecast data is missing. No rating shown.";
@@ -108,11 +116,10 @@ function windowHtml(result, window) {
       (result.state === "passed" ? "Past" : "Unavailable") + '</span></div><div class="slot-line">' + window.label + '</div><p class="note">' + message + '</p></section>';
   }
   const stats = result.stats;
-  const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
   const time = result.hours.length < window.hours.length ? "Remaining: " + String(result.hours[0]).padStart(2, "0") + ":00–" +
     String(result.hours.at(-1) + 1).padStart(2, "0") + ":00" : window.label;
   return '<section class="slot ' + result.rating + '"><div class="slot-head"><span class="slot-title">' + window.name +
-    '</span><span class="rating">' + result.score + '/5 · ' + titles[result.rating] + '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
+    '</span>' + scoreBadge(result) + '</div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
     '<div class="conditions"><div class="condition"><span>Temp:</span> ' + Math.round(stats.temp) + '°C</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
@@ -131,12 +138,10 @@ function highlightHtml(label, entry, emphasis = false, emptyText = "No comparabl
   if (!entry) return '<article class="card"><div class="label">' + label + '</div><div class="headline">' + emptyText + '</div>' +
     '<p class="meta">' + emptyNote + '</p></article>';
   const { stats } = entry.result;
-  const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
   return '<article class="card' + (emphasis ? ' best' : '') + '"><div class="label">' + label + '</div>' +
-    '<div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' +
+    '<div class="summary-head"><div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' + scoreBadge(entry.result) + '</div>' +
     '<div class="meta">' + entry.window.label + ' · ' + reasonFor(stats, entry.result.rating) + '</div>' +
-    '<div class="chips"><span class="chip">' + entry.result.score + '/5 · ' + titles[entry.result.rating] + '</span>' +
-    '<span class="chip">' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h</span>' +
+    '<div class="chips"><span class="chip">' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h</span>' +
     '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain ' + Math.round(stats.rainChance) + '%</span></div>' +
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction) + '</p></article>';
 }
