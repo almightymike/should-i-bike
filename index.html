@@ -34,8 +34,26 @@
       </section>
 
       <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
-      <section class="grid top-grid" id="highlights" aria-label="Ride highlights"></section>
-      <section class="grid days" id="forecast-grid" aria-label="Three-day ride outlook" aria-live="polite"></section>
+      <section class="dashboard-section highlights-section" aria-labelledby="highlights-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="highlights-heading">Ride highlights</h2>
+            <p>Best and backup rides, plus the weakest stretch. Scores and conditions cover two hours.</p>
+          </div>
+          <span class="scope-tag">Two-hour rides</span>
+        </div>
+        <div class="grid top-grid" id="highlights"></div>
+      </section>
+      <section class="dashboard-section forecast-section" aria-labelledby="forecast-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="forecast-heading">Three-day forecast</h2>
+            <p>Morning, afternoon and night conditions. Each score covers the full time window.</p>
+          </div>
+          <span class="scope-tag">Full time windows</span>
+        </div>
+        <div class="grid days" id="forecast-grid" aria-live="polite"></div>
+      </section>
       <section class="final" id="final-cards" aria-label="Final call and forecast notes"></section>
 
       <p class="footer-note">Forecast: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0), approximate selected coordinates. Location suggestions: GeoNames via Open-Meteo. Ratings are planning rules, not safety guarantees. Route notes compare broad exposure. Night rides also need lights and visibility checks. Check live conditions before riding.</p>
