@@ -111,6 +111,7 @@ test("ride-out time picks the best consecutive two-hour stretch within the windo
   const result = summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 });
   assert.equal(result.score, 2);
   assert.equal(result.rideOutHour, 8);
+  assert.equal(result.bestPair.score, 4);
   hourly.temperature_2m = [8, 8, 9, 12, 12];
   assert.equal(summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 }).rideOutHour, 9);
   hourly.temperature_2m.fill(8);
@@ -141,7 +142,11 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
   assert.equal((result.html.match(/class="slot good"/g) || []).length, 7);
   assert.match(result.html, /Night/);
+  assert.doesNotMatch(result.html, /Ride out:/);
   assert.match(result.highlights, /Ride out: 05:00/);
+  assert.match(result.highlights, /Wind 10 km\/h N/);
+  assert.match(result.highlights, /Rain total 0.0 mm/);
+  assert.match(result.highlights, /Weakest stretch:/);
   assert.match(result.final, /Final call/);
   assert.match(result.html, /rating score-text good" aria-label="Ride score 5 out of 5, Favourable"/);
   assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5, Favourable"/);
@@ -163,4 +168,21 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(unsafe.final, /No complete upcoming window has a suitable 2-hour start/);
   assert.match(unsafe.html, /rating score-text avoid" aria-label="Ride score 1 out of 5, Avoid exposed routes"/);
   assert.doesNotMatch(unsafe.highlights.split('Best backup')[0], /score-badge/);
+});
+
+test("a safe two-hour highlight can occur within a poor full-window forecast", () => {
+  const time = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27"].flatMap((date) =>
+    Array.from({ length: 24 }, (_, hour) => date + "T" + String(hour).padStart(2, "0") + ":00"));
+  const hourly = { time };
+  for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
+    hourly[field] = time.map(() => ({ temperature_2m: 14, precipitation_probability: 10, precipitation: 0,
+      wind_speed_10m: 10, wind_gusts_10m: 55, wind_direction_10m: 0, weather_code: 1 })[field]);
+  }
+  for (const hour of [6, 7, 8, 9]) hourly.wind_gusts_10m[time.indexOf("2026-09-25T0" + hour + ":00")] = 20;
+  const result = renderForecast(hourly, { date: "2026-09-24", hour: 22 });
+  assert.match(result.html, /class="slot avoid"/);
+  assert.doesNotMatch(result.html, /Ride out:/);
+  assert.match(result.highlights, /Best overall[\s\S]*Ride out: 06:00–07:59/);
+  assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5/);
+  assert.match(result.highlights, /Weakest stretch:[\s\S]*Rain total 0.0 mm/);
 });
