@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
-const { localClock, datesToShow, ratingFor, scoreFor, summariseWindow, renderForecast,
+const { localClock, datesToShow, compass, ratingFor, scoreFor, summariseWindow, renderForecast,
   locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches } = require("../script.js");
 
 const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
@@ -49,6 +49,13 @@ test("selected locations set coordinates and use local forecast time", () => {
   assert.equal(locationLabel(estimate), "Wellington, New Zealand");
   assert.equal(estimate.approximate, true);
   assert.equal(approximateLocation({ ...estimate, timezone: "Invalid/Timezone" }), null);
+});
+
+test("wind directions use full compass names", () => {
+  assert.equal(compass(0), "North");
+  assert.equal(compass(45), "Northeast");
+  assert.equal(compass(225), "Southwest");
+  assert.equal(compass(315), "Northwest");
 });
 
 test("Cloudflare location response is private and falls back when metadata is missing", async () => {
@@ -144,7 +151,7 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.html, /Night/);
   assert.doesNotMatch(result.html, /Ride out:/);
   assert.match(result.highlights, /Ride out: 05:00/);
-  assert.match(result.highlights, /Wind 10 km\/h N/);
+  assert.match(result.highlights, /Wind 10 km\/h North/);
   assert.match(result.highlights, /Rain total 0.0 mm/);
   assert.match(result.highlights, /Weakest stretch:/);
   assert.match(result.final, /Final call/);
@@ -154,7 +161,7 @@ test("dashboard ranks complete future windows and renders the reference card sec
     { name: "Paris", admin1: "Île-de-France", country: "France", country_code: "FR",
       latitude: 48.85, longitude: 2.35, timezone: "Europe/Paris" });
   assert.doesNotMatch(elsewhere.html, /Evans Bay|Seatoun|Miramar/);
-  assert.match(elsewhere.html, /Head into the N wind first, then return with a tailwind/);
+  assert.match(elsewhere.html, /Head into the North wind first, then return with a tailwind/);
   const wellington = renderForecast(hourly, { date: "2026-09-24", hour: 20 },
     { name: "Wellington", admin1: "Wellington Region", country: "New Zealand", country_code: "NZ",
       latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
