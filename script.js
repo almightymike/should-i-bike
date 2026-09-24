@@ -183,22 +183,23 @@ function summariseWindow(hourly, date, window, clock) {
   }
 
   const stats = statsForRows(rows);
-  const starts = [];
+  const pairs = [];
   for (let i = 0; i + RIDE_HOURS <= rows.length; i++) {
     if (futureHours[i + RIDE_HOURS - 1] !== futureHours[i] + RIDE_HOURS - 1) continue;
     const rideRows = rows.slice(i, i + RIDE_HOURS);
-    if (rideRows.some((row) => row.temperature_2m < RIDE_MIN_TEMP_C)) continue;
     const pair = statsForRows(rideRows);
-    if (scoreFor(pair) > 1) starts.push({ hour: futureHours[i], score: scoreFor(pair), burden: weatherBurden(pair) });
+    pairs.push({ hour: futureHours[i], stats: pair, score: scoreFor(pair), rating: ratingFor(pair),
+      cold: rideRows.some((row) => row.temperature_2m < RIDE_MIN_TEMP_C) });
   }
-  starts.sort((a, b) => b.score - a.score || a.burden - b.burden || a.hour - b.hour);
+  const bestPair = pairs.filter((pair) => pair.score > 1 && !pair.cold)
+    .sort((a, b) => b.score - a.score || weatherBurden(a.stats) - weatherBurden(b.stats) || a.hour - b.hour)[0];
+  const worstPair = pairs.sort((a, b) => a.score - b.score || weatherBurden(b.stats) - weatherBurden(a.stats) || a.hour - b.hour)[0];
   return { state: "ready", stats, rating: ratingFor(stats), score: scoreFor(stats), hours: futureHours,
-    rideOutHour: scoreFor(stats) > 1 ? starts[0]?.hour ?? null : null };
+    rideOutHour: bestPair?.hour ?? null, bestPair, worstPair };
 }
 
-function rideOutLabel(result) {
-  return result.rideOutHour == null ? "No suitable 2-hour start at 12°C or warmer" :
-    "Ride out: " + String(result.rideOutHour).padStart(2, "0") + ":00";
+function rideRange(hour) {
+  return String(hour).padStart(2, "0") + ":00–" + String(hour + RIDE_HOURS - 1).padStart(2, "0") + ":59";
 }
 
 function dateLabel(date) {
@@ -229,7 +230,6 @@ function windowHtml(result, window, location) {
     '</span><span class="rating score-text ' + result.rating + '" aria-label="Ride score ' + result.score + ' out of 5, ' +
     titles[result.rating] + '">' + result.score + '/5 · ' + titles[result.rating] +
     '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
-    '<div class="ride-out">' + rideOutLabel(result) + '</div>' +
     '<div class="conditions"><div class="condition"><span>Temp:</span> ' + Math.round(stats.temp) + '°C</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
@@ -240,20 +240,18 @@ function windowHtml(result, window, location) {
     '<p class="route"><strong>Route:</strong> ' + routeFor(result.rating, stats.direction, location) + '</p></section>';
 }
 
-function rankWindow(entry) {
-  return weatherBurden(entry.result.stats);
-}
-
-function highlightHtml(label, entry, location, emphasis = false, emptyText = "No comparable window", emptyNote = "Check the day cards for passed or incomplete windows.") {
+function highlightHtml(label, entry, location, emphasis = false, emptyText = "No comparable window", emptyNote = "Check the day cards for passed or incomplete windows.", weakest = false) {
   if (!entry) return '<article class="card"><div class="label">' + label + '</div><div class="headline">' + emptyText + '</div>' +
     '<p class="meta">' + emptyNote + '</p></article>';
   const { stats } = entry.result;
   return '<article class="card' + (emphasis ? ' best' : '') + '"><div class="label">' + label + '</div>' +
     '<div class="summary-head"><div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' + scoreBadge(entry.result) + '</div>' +
-    '<div class="meta">' + entry.window.label + ' · ' + reasonFor(stats, entry.result.rating) + '</div>' +
-    '<div class="ride-out">' + rideOutLabel(entry.result) + '</div>' +
-    '<div class="chips"><span class="chip">' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h</span>' +
-    '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain ' + Math.round(stats.rainChance) + '%</span></div>' +
+    '<div class="ride-out">' + (weakest ? "Weakest stretch: " : "Ride out: ") + rideRange(entry.result.hour) + '</div>' +
+    '<div class="meta">' + reasonFor(stats, entry.result.rating) +
+    (entry.result.cold ? ' Below the 12°C ride-out minimum.' : '') + '</div>' +
+    '<div class="chips"><span class="chip">Temp ' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</span>' +
+    '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain chance ' + Math.round(stats.rainChance) + '%</span>' +
+    '<span class="chip">Rain total ' + stats.rain.toFixed(1) + ' mm</span></div>' +
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location) + '</p></article>';
 }
 
@@ -272,26 +270,32 @@ function renderForecast(hourly, clock, location = DEFAULT_LOCATION) {
       '<p class="meta">' + (date === clock.date ? "Today" : "Morning, afternoon and night outlook") + '</p></div>' +
       '<span class="badge">' + (date === clock.date ? "Today" : "Upcoming") + '</span></div>' + slots + '</article>';
   });
-  const ranked = entries.slice().sort((a, b) => b.result.score - a.result.score || rankWindow(a) - rankWindow(b));
-  const rideOptions = ranked.filter((entry) => entry.result.score > 1 && entry.result.rideOutHour != null);
+  const rideOptions = entries.filter((entry) => entry.result.bestPair).map((entry) =>
+    ({ date: entry.date, window: entry.window, result: entry.result.bestPair }))
+    .sort((a, b) => b.result.score - a.result.score ||
+      weatherBurden(a.result.stats) - weatherBurden(b.result.stats));
   const best = rideOptions[0];
   const backup = rideOptions[1];
-  const weakest = ranked.length > 1 ? ranked.at(-1) : null;
+  const weakest = entries.filter((entry) => entry.result.worstPair).map((entry) =>
+    ({ date: entry.date, window: entry.window, result: entry.result.worstPair }))
+    .sort((a, b) => a.result.score - b.result.score ||
+      weatherBurden(b.result.stats) - weatherBurden(a.result.stats))[0];
   const highlights = highlightHtml("Best overall", best, location, true, entries.length ? "No ride recommended" : "Forecast incomplete",
     entries.length ? "No complete window has a suitable 2-hour start. Check again later." : "/inco: No complete upcoming window can be rated.") +
     highlightHtml("Best backup", backup, location, false, best ? "No backup available" : "No ride recommended",
       best ? "No second ride option has a suitable 2-hour start." : "No complete ride option has a suitable 2-hour start.") +
-    highlightHtml("Weakest option", weakest, location);
+    highlightHtml("Weakest option", weakest, location, false, "No comparable stretch",
+      "No complete two-hour stretch is available to compare.", true);
   const final = '<article class="card"><div class="label">Final call</div><div class="headline">' +
-    (best ? dateLabel(best.date) + ' · ' + best.window.name + ' · ' + rideOutLabel(best.result) + ' · ' + best.result.score + '/5' :
+    (best ? dateLabel(best.date) + ' · ' + best.window.name + ' · ' + rideRange(best.result.hour) + ' · ' + best.result.score + '/5' :
       entries.length ? "No ride recommended" : "Forecast incomplete") +
     '</div><p class="meta">' + (best ? reasonFor(best.result.stats, best.result.rating) +
     (backup ? ' Backup: ' + dateLabel(backup.date) + ' ' + backup.window.name + ' (' + backup.result.score + '/5).' : '') :
     entries.length ? 'No complete upcoming window has a suitable 2-hour start. Check again later.' :
       '/inco: No complete upcoming window can be rated.') + '</p></article>' +
     '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast from Open-Meteo for the selected location. ' +
-    'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Each window uses the strongest wind and gust, highest rain chance, and total predicted rain. ' +
-    'Ride out is the best two-hour start inside each window with a rating above 1/5 and both hours at least 12°C. Night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
+    'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Forecast cards rate the entire time window. Ride highlights score and show conditions for a two-hour stretch only. ' +
+    'Ride-out options need both hours at least 12°C. Night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
   return { html: cards.join(""), highlights, final, incomplete };
 }
 
