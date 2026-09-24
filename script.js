@@ -116,10 +116,13 @@ function windowHtml(result, window) {
       (result.state === "passed" ? "Past" : "Unavailable") + '</span></div><div class="slot-line">' + window.label + '</div><p class="note">' + message + '</p></section>';
   }
   const stats = result.stats;
+  const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
   const time = result.hours.length < window.hours.length ? "Remaining: " + String(result.hours[0]).padStart(2, "0") + ":00–" +
     String(result.hours.at(-1) + 1).padStart(2, "0") + ":00" : window.label;
   return '<section class="slot ' + result.rating + '"><div class="slot-head"><span class="slot-title">' + window.name +
-    '</span>' + scoreBadge(result) + '</div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
+    '</span><span class="rating score-text ' + result.rating + '" aria-label="Ride score ' + result.score + ' out of 5, ' +
+    titles[result.rating] + '">' + result.score + '/5 · ' + titles[result.rating] +
+    '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
     '<div class="conditions"><div class="condition"><span>Temp:</span> ' + Math.round(stats.temp) + '°C</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
