@@ -45,6 +45,15 @@ function ratingFor(stats) {
   return "good";
 }
 
+function scoreFor(stats) {
+  const rating = ratingFor(stats);
+  if (rating === "avoid") return 1;
+  if (rating === "good") {
+    return stats.wind < 15 && stats.gust < 25 && stats.rainChance < 15 && stats.rain < 0.1 ? 5 : 4;
+  }
+  return stats.wind < 25 && stats.gust < 42 && stats.rainChance < 45 && stats.rain < 0.8 ? 3 : 2;
+}
+
 function reasonFor(stats, rating) {
   if (stats.thunder) return "Thunder is forecast in this window.";
   if (rating === "good") return "Wind and rain stay below the caution limits.";
@@ -83,7 +92,7 @@ function summariseWindow(hourly, date, window, clock) {
     direction: prevailingDirection(rows),
     thunder: rows.some((row) => row.weather_code >= 95)
   };
-  return { state: "ready", stats, rating: ratingFor(stats), hours: futureHours };
+  return { state: "ready", stats, rating: ratingFor(stats), score: scoreFor(stats), hours: futureHours };
 }
 
 function dateLabel(date) {
@@ -103,7 +112,7 @@ function windowHtml(result, window) {
   const time = result.hours.length < window.hours.length ? "Remaining: " + String(result.hours[0]).padStart(2, "0") + ":00–" +
     String(result.hours.at(-1) + 1).padStart(2, "0") + ":00" : window.label;
   return '<section class="slot ' + result.rating + '"><div class="slot-head"><span class="slot-title">' + window.name +
-    '</span><span class="rating">' + titles[result.rating] + '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
+    '</span><span class="rating">' + result.score + '/5 · ' + titles[result.rating] + '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
     '<div class="conditions"><div class="condition"><span>Temp:</span> ' + Math.round(stats.temp) + '°C</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
@@ -115,19 +124,18 @@ function windowHtml(result, window) {
 
 function rankWindow(entry) {
   const stats = entry.result.stats;
-  const tier = { good: 0, caution: 1, avoid: 2 }[entry.result.rating];
-  return tier * 1000 + stats.gust * 2 + stats.wind + stats.rainChance + stats.rain * 20;
+  return stats.gust * 2 + stats.wind + stats.rainChance + stats.rain * 20;
 }
 
-function highlightHtml(label, entry, emphasis = false) {
-  if (!entry) return '<article class="card"><div class="label">' + label + '</div><div class="headline">No comparable window</div>' +
-    '<p class="meta">/inco: More complete forecast windows are needed.</p></article>';
+function highlightHtml(label, entry, emphasis = false, emptyText = "No comparable window", emptyNote = "Check the day cards for passed or incomplete windows.") {
+  if (!entry) return '<article class="card"><div class="label">' + label + '</div><div class="headline">' + emptyText + '</div>' +
+    '<p class="meta">' + emptyNote + '</p></article>';
   const { stats } = entry.result;
   const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
   return '<article class="card' + (emphasis ? ' best' : '') + '"><div class="label">' + label + '</div>' +
     '<div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' +
     '<div class="meta">' + entry.window.label + ' · ' + reasonFor(stats, entry.result.rating) + '</div>' +
-    '<div class="chips"><span class="chip">' + titles[entry.result.rating] + '</span>' +
+    '<div class="chips"><span class="chip">' + entry.result.score + '/5 · ' + titles[entry.result.rating] + '</span>' +
     '<span class="chip">' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h</span>' +
     '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain ' + Math.round(stats.rainChance) + '%</span></div>' +
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction) + '</p></article>';
@@ -148,19 +156,25 @@ function renderForecast(hourly, clock) {
       '<p class="meta">' + (date === clock.date ? "Today in Wellington" : "Morning and afternoon outlook") + '</p></div>' +
       '<span class="badge">' + (date === clock.date ? "Today" : "Upcoming") + '</span></div>' + slots + '</article>';
   });
-  const ranked = entries.slice().sort((a, b) => rankWindow(a) - rankWindow(b));
-  const best = ranked[0];
-  const backup = ranked[1];
-  const weakest = ranked.length > 2 ? ranked.at(-1) : null;
-  const highlights = highlightHtml("Best overall", best, true) + highlightHtml("Best backup", backup) +
+  const ranked = entries.slice().sort((a, b) => b.result.score - a.result.score || rankWindow(a) - rankWindow(b));
+  const rideOptions = ranked.filter((entry) => entry.result.score > 1);
+  const best = rideOptions[0];
+  const backup = rideOptions[1];
+  const weakest = ranked.length > 1 ? ranked.at(-1) : null;
+  const highlights = highlightHtml("Best overall", best, true, entries.length ? "No ride recommended" : "Forecast incomplete",
+    entries.length ? "Every complete window is 1/5. Check again later." : "/inco: No complete upcoming window can be rated.") +
+    highlightHtml("Best backup", backup, false, best ? "No backup available" : "No ride recommended",
+      best ? "No second ride option scores above 1/5." : "No complete ride option scores above 1/5.") +
     highlightHtml("Weakest option", weakest);
   const final = '<article class="card"><div class="label">Final call</div><div class="headline">' +
-    (best ? (best.result.rating === "avoid" ? "No favourable window yet" : dateLabel(best.date) + ' · ' + best.window.name) : "Forecast incomplete") +
+    (best ? dateLabel(best.date) + ' · ' + best.window.name + ' · ' + best.result.score + '/5' :
+      entries.length ? "No ride recommended" : "Forecast incomplete") +
     '</div><p class="meta">' + (best ? reasonFor(best.result.stats, best.result.rating) +
-    (backup ? ' Backup: ' + dateLabel(backup.date) + ' ' + backup.window.name + '.' : '') :
-    '/inco: No complete upcoming window can be rated.') + '</p></article>' +
+    (backup ? ' Backup: ' + dateLabel(backup.date) + ' ' + backup.window.name + ' (' + backup.result.score + '/5).' : '') :
+    entries.length ? 'All complete upcoming windows score 1/5. Avoid exposed routes and check again later.' :
+      '/inco: No complete upcoming window can be rated.') + '</p></article>' +
     '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast for Miramar from Open-Meteo. ' +
-    'Each window uses the strongest wind and gust, highest rain chance, and total predicted rain. ' +
+    'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Each window uses the strongest wind and gust, highest rain chance, and total predicted rain. ' +
     'Check current conditions and route exposure before leaving.</p></article>';
   return { html: cards.join(""), highlights, final, incomplete };
 }
@@ -214,5 +228,5 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { localClock, datesToShow, compass, ratingFor, summariseWindow, renderForecast };
+  module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, summariseWindow, renderForecast };
 }
