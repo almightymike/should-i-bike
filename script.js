@@ -39,6 +39,17 @@ function validLocation(location) {
   catch { return false; }
 }
 
+function approximateLocation(data) {
+  if (!data || typeof data.country_code !== "string") return null;
+  let country = data.country_code;
+  try { country = new Intl.DisplayNames(["en"], { type: "region" }).of(country) || country; }
+  catch { /* Keep the country code if a display name is unavailable. */ }
+  const location = { name: data.name, admin1: data.admin1 || "", country,
+    country_code: data.country_code, latitude: data.latitude, longitude: data.longitude,
+    timezone: data.timezone, approximate: true };
+  return validLocation(location) ? location : null;
+}
+
 function forecastUrl(location) {
   const url = new URL(FORECAST_API);
   url.searchParams.set("latitude", location.latitude);
@@ -253,10 +264,12 @@ function savedLocation() {
     const location = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (validLocation(location)) return location;
   } catch { /* Private browsing can block storage. */ }
-  return DEFAULT_LOCATION;
+  return null;
 }
 
-let selectedLocation = typeof document === "undefined" ? DEFAULT_LOCATION : savedLocation();
+const rememberedLocation = typeof document === "undefined" ? null : savedLocation();
+let selectedLocation = rememberedLocation || DEFAULT_LOCATION;
+let locationChoice = 0;
 let forecastRequest = 0;
 let forecastController;
 let searchRequest = 0;
@@ -266,7 +279,8 @@ let suggestions = [];
 let activeSuggestion = -1;
 
 function updateLocationHeader() {
-  document.querySelector("#current-location").textContent = locationLabel(selectedLocation);
+  document.querySelector("#current-location").textContent = locationLabel(selectedLocation) +
+    (selectedLocation.approximate ? " (approximate)" : "");
   document.querySelector("#page-title").textContent = selectedLocation.name + " Cycling Dashboard";
   document.title = "Should I Bike? | " + selectedLocation.name + " Cycling Dashboard";
 }
@@ -284,6 +298,7 @@ function closeSuggestions() {
 
 function chooseLocation(location) {
   if (!validLocation(location)) return;
+  locationChoice++;
   clearTimeout(searchTimer);
   searchRequest++;
   searchController?.abort();
@@ -293,6 +308,28 @@ function chooseLocation(location) {
   document.querySelector("#location-hint").textContent = "Showing " + locationLabel(location) + ". Type to choose another location.";
   closeSuggestions();
   updateLocationHeader();
+  loadForecast();
+}
+
+async function initialiseLocation(force = false) {
+  if (rememberedLocation && !force) { loadForecast(); return; }
+  const choice = locationChoice;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+  document.querySelector("#status").textContent = "Finding approximate location…";
+  document.querySelector("#refresh").disabled = true;
+  let estimate = null;
+  try {
+    const response = await fetch("/api/location", { cache: "no-store", signal: controller.signal });
+    if (response.ok && response.status !== 204) estimate = approximateLocation(await response.json());
+  } catch { /* Fall back to Miramar if the estimate is unavailable. */ }
+  finally { clearTimeout(timer); }
+  if (choice !== locationChoice) return;
+  selectedLocation = estimate || DEFAULT_LOCATION;
+  updateLocationHeader();
+  document.querySelector("#location-hint").textContent = estimate ?
+    "Approximate network location. Type to choose a more accurate place." :
+    "Showing Miramar because approximate location is unavailable. Type to choose another place.";
   loadForecast();
 }
 
@@ -438,13 +475,23 @@ async function loadForecast() {
 }
 
 if (typeof document !== "undefined") {
-  updateLocationHeader();
+  if (rememberedLocation) updateLocationHeader();
   setupLocationSearch();
   document.querySelector("#refresh").addEventListener("click", loadForecast);
-  loadForecast();
+  document.querySelector("#use-approx").addEventListener("click", () => {
+    locationChoice++;
+    searchRequest++;
+    searchController?.abort();
+    clearTimeout(searchTimer);
+    closeSuggestions();
+    document.querySelector("#location-query").value = "";
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* Storage is optional. */ }
+    initialiseLocation(true);
+  });
+  initialiseLocation();
 }
 
 if (typeof module !== "undefined") {
   module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, summariseWindow, renderForecast,
-    locationLabel, validLocation, forecastUrl, geocodingUrl, locationMatches };
+    locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches };
 }
