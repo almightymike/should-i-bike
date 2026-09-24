@@ -1,20 +1,20 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { localClock, datesToShow, ratingFor, summariseWindow } = require("../script.js");
+const { localClock, datesToShow, ratingFor, summariseWindow, renderForecast } = require("../script.js");
 
-const morning = { name: "Morning", hours: [8, 9, 10, 11] };
+const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
 
 function fixture(date = "2026-09-25") {
   const hours = morning.hours;
   return {
     time: hours.map((hour) => date + "T" + String(hour).padStart(2, "0") + ":00"),
-    temperature_2m: [12, 13, 14, 15],
-    precipitation_probability: [10, 20, 15, 10],
-    precipitation: [0, 0, 0, 0],
-    wind_speed_10m: [10, 12, 13, 11],
-    wind_gusts_10m: [18, 20, 22, 19],
-    wind_direction_10m: [0, 10, 350, 0],
-    weather_code: [1, 1, 2, 1]
+    temperature_2m: [12, 13, 14, 15, 16],
+    precipitation_probability: [10, 20, 15, 10, 15],
+    precipitation: [0, 0, 0, 0, 0],
+    wind_speed_10m: [10, 12, 13, 11, 12],
+    wind_gusts_10m: [18, 20, 22, 19, 21],
+    wind_direction_10m: [0, 10, 350, 0, 5],
+    weather_code: [1, 1, 2, 1, 2]
   };
 }
 
@@ -47,6 +47,23 @@ test("today's window uses only future full forecast hours", () => {
   const hourly = fixture("2026-09-24");
   hourly.wind_gusts_10m[0] = 80;
   const result = summariseWindow(hourly, "2026-09-24", morning, { date: "2026-09-24", hour: 9 });
-  assert.deepEqual(result.hours, [10, 11]);
+  assert.deepEqual(result.hours, [10]);
   assert.equal(result.rating, "good");
+});
+
+test("dashboard ranks complete future windows and renders the reference card sections", () => {
+  const time = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27"].flatMap((date) =>
+    Array.from({ length: 24 }, (_, hour) => date + "T" + String(hour).padStart(2, "0") + ":00"));
+  const hourly = { time };
+  for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
+    hourly[field] = time.map(() => ({ temperature_2m: 14, precipitation_probability: 10, precipitation: 0,
+      wind_speed_10m: 10, wind_gusts_10m: 20, wind_direction_10m: 0, weather_code: 1 })[field]);
+  }
+  const result = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
+  assert.match(result.highlights, /Best overall/);
+  assert.match(result.highlights, /Best backup/);
+  assert.match(result.highlights, /Weakest option/);
+  assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
+  assert.equal((result.html.match(/class="slot good"/g) || []).length, 6);
+  assert.match(result.final, /Final call/);
 });

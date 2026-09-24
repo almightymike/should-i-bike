@@ -2,8 +2,8 @@
 const TIMEZONE = "Pacific/Auckland";
 const API_URL = "https://api.open-meteo.com/v1/forecast?latitude=-41.317&longitude=174.817&hourly=temperature_2m,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code&timezone=Pacific%2FAuckland&forecast_days=4&wind_speed_unit=kmh";
 const WINDOWS = [
-  { name: "Morning", hours: [8, 9, 10, 11], label: "8–11 am" },
-  { name: "Afternoon", hours: [13, 14, 15, 16], label: "1–4 pm" }
+  { name: "Morning", hours: [6, 7, 8, 9, 10], label: "06:00–11:00" },
+  { name: "Afternoon", hours: [12, 13, 14, 15, 16], label: "12:00–17:00" }
 ];
 const FIELDS = ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"];
 
@@ -55,9 +55,9 @@ function reasonFor(stats, rating) {
 }
 
 function routeFor(rating, direction) {
-  if (rating === "avoid") return "Skip exposed waterfront and peninsula roads. Check again later.";
-  if (rating === "caution") return "Prefer a shorter Miramar loop over exposed coastal roads. Wind from " + direction + ".";
-  return "A waterfront ride via Evans Bay is an option. Check open sections for wind from " + direction + ".";
+  if (rating === "avoid") return "Skip exposed coastal roads; check again later.";
+  if (rating === "caution") return "Shorter sheltered Miramar / Seatoun loop. Check wind from " + direction + ".";
+  return "Evans Bay / Oriental Bay loop is an option. Check open sections for wind from " + direction + ".";
 }
 
 function summariseWindow(hourly, date, window, clock) {
@@ -88,54 +88,92 @@ function summariseWindow(hourly, date, window, clock) {
 
 function dateLabel(date) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Invalid forecast date.");
-  return new Intl.DateTimeFormat("en-NZ", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" })
+  return new Intl.DateTimeFormat("en-NZ", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
     .format(new Date(date + "T00:00:00Z"));
 }
 
 function windowHtml(result, window) {
-  let content;
-  if (result.state === "passed") {
-    content = '<span class="rating unavailable">Window passed</span><p class="summary">This time has passed in Wellington.</p>';
-  } else if (result.state === "incomplete") {
-    content = '<span class="rating unavailable">Forecast unavailable</span><p class="summary">/inco: Hourly forecast data is missing for this window. No rating shown.</p>';
-  } else {
-    const stats = result.stats;
-    const title = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" }[result.rating];
-    const time = result.hours.length < window.hours.length ? "Remaining: " + result.hours[0] + "–" + result.hours.at(-1) + ":00" : window.label;
-    content = '<span class="rating ' + result.rating + '">' + title + '</span>' +
-      '<p class="summary">' + reasonFor(stats, result.rating) + '</p>' +
-      '<dl class="metrics">' +
-      '<div><dt>Wind</dt><dd>' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</dd></div>' +
-      '<div><dt>Gusts</dt><dd>' + Math.round(stats.gust) + ' km/h</dd></div>' +
-      '<div><dt>Rain chance</dt><dd>' + Math.round(stats.rainChance) + '%</dd></div>' +
-      '<div><dt>Rain / temp</dt><dd>' + stats.rain.toFixed(1) + ' mm / ' + Math.round(stats.temp) + '°C</dd></div></dl>' +
-      '<p class="route"><strong>Route note</strong>' + routeFor(result.rating, stats.direction) + '</p>';
-    return '<section class="slot" aria-label="' + window.name + ' ' + time + '"><div class="slot-heading"><h4>' + window.name + '</h4><span>' + time + '</span></div>' + content + '</section>';
+  if (result.state !== "ready") {
+    const message = result.state === "passed" ? "This ride window has passed in Wellington." : "/inco: Hourly forecast data is missing. No rating shown.";
+    return '<section class="slot unavailable"><div class="slot-head"><span class="slot-title">' + window.name + '</span><span class="rating">' +
+      (result.state === "passed" ? "Past" : "Unavailable") + '</span></div><div class="slot-line">' + window.label + '</div><p class="note">' + message + '</p></section>';
   }
-  return '<section class="slot unavailable-slot" aria-label="' + window.name + '"><div class="slot-heading"><h4>' + window.name + '</h4><span>' + window.label + '</span></div>' + content + '</section>';
+  const stats = result.stats;
+  const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
+  const time = result.hours.length < window.hours.length ? "Remaining: " + String(result.hours[0]).padStart(2, "0") + ":00–" +
+    String(result.hours.at(-1) + 1).padStart(2, "0") + ":00" : window.label;
+  return '<section class="slot ' + result.rating + '"><div class="slot-head"><span class="slot-title">' + window.name +
+    '</span><span class="rating">' + titles[result.rating] + '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
+    '<div class="conditions"><div class="condition"><span>Temp:</span> ' + Math.round(stats.temp) + '°C</div>' +
+    '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
+    '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
+    '<div class="condition"><span>Rain chance:</span> ' + Math.round(stats.rainChance) + '%</div>' +
+    '<div class="condition"><span>Rain total:</span> ' + stats.rain.toFixed(1) + ' mm</div>' +
+    '<div class="condition"><span>Exposure:</span> ' + (result.rating === "good" ? "check open sections" : "avoid open coast") + '</div></div>' +
+    '<p class="route"><strong>Route:</strong> ' + routeFor(result.rating, stats.direction) + '</p></section>';
+}
+
+function rankWindow(entry) {
+  const stats = entry.result.stats;
+  const tier = { good: 0, caution: 1, avoid: 2 }[entry.result.rating];
+  return tier * 1000 + stats.gust * 2 + stats.wind + stats.rainChance + stats.rain * 20;
+}
+
+function highlightHtml(label, entry, emphasis = false) {
+  if (!entry) return '<article class="card"><div class="label">' + label + '</div><div class="headline">No comparable window</div>' +
+    '<p class="meta">/inco: More complete forecast windows are needed.</p></article>';
+  const { stats } = entry.result;
+  const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
+  return '<article class="card' + (emphasis ? ' best' : '') + '"><div class="label">' + label + '</div>' +
+    '<div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' +
+    '<div class="meta">' + entry.window.label + ' · ' + reasonFor(stats, entry.result.rating) + '</div>' +
+    '<div class="chips"><span class="chip">' + titles[entry.result.rating] + '</span>' +
+    '<span class="chip">' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h</span>' +
+    '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain ' + Math.round(stats.rainChance) + '%</span></div>' +
+    '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction) + '</p></article>';
 }
 
 function renderForecast(hourly, clock) {
   const dates = datesToShow(hourly, clock);
   let incomplete = false;
+  const entries = [];
   const cards = dates.map((date) => {
     const slots = WINDOWS.map((window) => {
       const result = summariseWindow(hourly, date, window, clock);
       if (result.state === "incomplete") incomplete = true;
+      if (result.state === "ready") entries.push({ date, window, result });
       return windowHtml(result, window);
     }).join("");
-    return '<article class="day-card"><div class="day-head"><h3>' + (date === clock.date ? "Today" : dateLabel(date).split(",")[0]) +
-      '</h3><span>' + dateLabel(date) + '</span></div>' + slots + '</article>';
+    return '<article class="card day-card"><div class="day-title"><div><h2>' + dateLabel(date) + '</h2>' +
+      '<p class="meta">' + (date === clock.date ? "Today in Wellington" : "Morning and afternoon outlook") + '</p></div>' +
+      '<span class="badge">' + (date === clock.date ? "Today" : "Upcoming") + '</span></div>' + slots + '</article>';
   });
-  return { html: cards.join(""), incomplete };
+  const ranked = entries.slice().sort((a, b) => rankWindow(a) - rankWindow(b));
+  const best = ranked[0];
+  const backup = ranked[1];
+  const weakest = ranked.length > 2 ? ranked.at(-1) : null;
+  const highlights = highlightHtml("Best overall", best, true) + highlightHtml("Best backup", backup) +
+    highlightHtml("Weakest option", weakest);
+  const final = '<article class="card"><div class="label">Final call</div><div class="headline">' +
+    (best ? (best.result.rating === "avoid" ? "No favourable window yet" : dateLabel(best.date) + ' · ' + best.window.name) : "Forecast incomplete") +
+    '</div><p class="meta">' + (best ? reasonFor(best.result.stats, best.result.rating) +
+    (backup ? ' Backup: ' + dateLabel(backup.date) + ' ' + backup.window.name + '.' : '') :
+    '/inco: No complete upcoming window can be rated.') + '</p></article>' +
+    '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast for Miramar from Open-Meteo. ' +
+    'Each window uses the strongest wind and gust, highest rain chance, and total predicted rain. ' +
+    'Check current conditions and route exposure before leaving.</p></article>';
+  return { html: cards.join(""), highlights, final, incomplete };
 }
 
 async function loadForecast() {
   const status = document.querySelector("#status");
   const grid = document.querySelector("#forecast-grid");
+  const highlights = document.querySelector("#highlights");
+  const final = document.querySelector("#final-cards");
+  const updated = document.querySelector("#updated");
   const button = document.querySelector("#refresh");
   button.disabled = true;
-  status.classList.remove("error");
+  status.classList.remove("warning");
   status.textContent = "Loading the latest forecast…";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
@@ -149,11 +187,19 @@ async function loadForecast() {
     const clock = localClock();
     const result = renderForecast(payload.hourly, clock);
     grid.innerHTML = result.html;
-    status.textContent = "Forecast checked at " + String(clock.hour).padStart(2, "0") + ":" + String(clock.minute).padStart(2, "0") +
-      " Wellington time." + (result.incomplete ? " /inco: Some forecast hours are missing, so affected windows have no rating." : "");
+    highlights.innerHTML = result.highlights;
+    final.innerHTML = result.final;
+    updated.textContent = "Updated " + dateLabel(clock.date) + " · " + String(clock.hour).padStart(2, "0") + ":" +
+      String(clock.minute).padStart(2, "0") + " NZ time";
+    status.textContent = result.incomplete ? "/inco: Some hourly forecast data is missing. Affected windows have no rating." :
+      "Forecast checked at " + String(clock.hour).padStart(2, "0") + ":" + String(clock.minute).padStart(2, "0") + " Wellington time.";
+    if (result.incomplete) status.classList.add("warning");
   } catch (error) {
     grid.replaceChildren();
-    status.classList.add("error");
+    highlights.replaceChildren();
+    final.replaceChildren();
+    updated.textContent = "Forecast unavailable";
+    status.classList.add("warning");
     status.textContent = "/inco: Live weather is unavailable. Wind and rain data are missing. Try Refresh forecast.";
     console.error("Forecast load failed:", error);
   } finally {

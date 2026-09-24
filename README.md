@@ -1,6 +1,6 @@
 # Should I Bike?
 
-Three-day ride outlook for Miramar, Wellington. Shows morning (8–11 am) and afternoon (1–4 pm) conditions and a simple rating based on wind, gusts, rain probability, predicted rain and thunderstorms.
+Three-day ride outlook for Miramar, Wellington. The dashboard follows the original card layout: best overall, best backup, weakest option, three day cards with morning and afternoon slots, and a final call. It shows live conditions and a simple rating based on wind, gusts, rain probability, predicted rain and thunderstorms.
 
 ## Run locally
 
@@ -17,6 +17,7 @@ If the live site shows an older version after a merge, open the Pages project's 
 ## Forecast logic
 
 - Data comes from Open-Meteo at approximately 41.317° S, 174.817° E, using `Pacific/Auckland` time.
+- Morning covers 06:00–11:00 and afternoon covers 12:00–17:00. Passed hours are not rated. After 17:00, the dashboard shows the next three days.
 - Each window displays the maximum hourly wind, gust and rain probability, the sum of predicted hourly rain, and average temperature.
 - Favourable means wind below 20 km/h, gusts below 35 km/h, rain chance below 30%, and rain below 0.4 mm.
 - Avoid exposed routes means wind at least 30 km/h, gusts at least 50 km/h, rain chance at least 60%, rain at least 1.5 mm, or forecast thunder. Other windows are marked Use caution.
