@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { localClock, datesToShow, ratingFor, scoreFor, summariseWindow, renderForecast } = require("../script.js");
+const { localClock, datesToShow, ratingFor, scoreFor, summariseWindow, renderForecast,
+  locationLabel, validLocation, forecastUrl, geocodingUrl, locationMatches } = require("../script.js");
 
 const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
 
@@ -21,6 +22,26 @@ function fixture(date = "2026-09-25") {
 test("Wellington dates use local time, including the daylight saving change", () => {
   assert.equal(localClock(new Date("2026-09-24T12:30:00Z")).date, "2026-09-25");
   assert.equal(localClock(new Date("2026-09-27T11:30:00Z")).date, "2026-09-28");
+  assert.equal(localClock(new Date("2026-09-24T12:30:00Z"), "America/Los_Angeles").date, "2026-09-24");
+});
+
+test("selected locations set coordinates and use local forecast time", () => {
+  const location = { name: "Paris", admin1: "Île-de-France", country: "France", country_code: "FR",
+    latitude: 48.85, longitude: 2.35, timezone: "Europe/Paris" };
+  assert.equal(validLocation(location), true);
+  assert.equal(locationLabel(location), "Paris, Île-de-France, France");
+  const url = new URL(forecastUrl(location));
+  assert.equal(url.searchParams.get("latitude"), "48.85");
+  assert.equal(url.searchParams.get("longitude"), "2.35");
+  assert.equal(url.searchParams.get("timezone"), "auto");
+  assert.equal(new URL(geocodingUrl("Par")).searchParams.get("name"), "Par");
+  assert.equal(validLocation({ ...location, latitude: 190 }), false);
+  const matches = locationMatches("Mir", [{ name: "Miramar", admin1: "Wellington", country: "New Zealand",
+    country_code: "NZ", latitude: -41.31, longitude: 174.82, timezone: "Pacific/Auckland" },
+    { ...location, name: "Mirabel", admin1: undefined }]);
+  assert.equal(matches[0].latitude, -41.317);
+  assert.equal(matches.length, 2);
+  assert.equal(matches[1].admin1, "");
 });
 
 test("after the afternoon window, show tomorrow and the following two days", () => {
@@ -80,6 +101,11 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.final, /Final call/);
   assert.match(result.html, /rating score-text good" aria-label="Ride score 5 out of 5, Favourable"/);
   assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5, Favourable"/);
+  const elsewhere = renderForecast(hourly, { date: "2026-09-24", hour: 20 },
+    { name: "Paris", admin1: "Île-de-France", country: "France", country_code: "FR",
+      latitude: 48.85, longitude: 2.35, timezone: "Europe/Paris" });
+  assert.doesNotMatch(elsewhere.html, /Evans Bay|Seatoun|Miramar/);
+  assert.match(elsewhere.html, /Consider a local route/);
   hourly.wind_gusts_10m.fill(36);
   const cautious = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(cautious.html, /rating score-text caution" aria-label="Ride score 3 out of 5, Use caution"/);
