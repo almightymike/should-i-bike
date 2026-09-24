@@ -1,7 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { readFileSync } = require("node:fs");
+const { join } = require("node:path");
 const { localClock, datesToShow, ratingFor, scoreFor, summariseWindow, renderForecast,
-  locationLabel, validLocation, forecastUrl, geocodingUrl, locationMatches } = require("../script.js");
+  locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches } = require("../script.js");
 
 const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
 
@@ -42,6 +44,23 @@ test("selected locations set coordinates and use local forecast time", () => {
   assert.equal(matches[0].latitude, -41.317);
   assert.equal(matches.length, 2);
   assert.equal(matches[1].admin1, "");
+  const estimate = approximateLocation({ name: "Wellington", admin1: "Wellington", country_code: "NZ",
+    latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
+  assert.equal(locationLabel(estimate), "Wellington, New Zealand");
+  assert.equal(estimate.approximate, true);
+  assert.equal(approximateLocation({ ...estimate, timezone: "Invalid/Timezone" }), null);
+});
+
+test("Cloudflare location response is private and falls back when metadata is missing", async () => {
+  const source = readFileSync(join(__dirname, "../functions/api/location.js"), "utf8");
+  const { onRequestGet } = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
+  const absent = onRequestGet({ request: { cf: {} } });
+  assert.equal(absent.status, 204);
+  const response = onRequestGet({ request: { cf: { city: "Wellington", region: "Wellington", country: "NZ",
+    latitude: "-41.28", longitude: "174.78", timezone: "Pacific/Auckland" } } });
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(await response.json(), { name: "Wellington", admin1: "Wellington", country_code: "NZ",
+    latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
 });
 
 test("after the afternoon window, show tomorrow and the following two days", () => {
