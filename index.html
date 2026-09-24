@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
-    <title>Should I Bike? | Miramar Cycling Dashboard</title>
+    <title>Should I Bike? | Cycling Dashboard</title>
     <meta name="description" content="A live three-day cycling outlook with the best ride window, route notes, wind and rain forecasts for your chosen location.">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
@@ -13,8 +13,8 @@
     <main class="wrap">
       <header class="page-head">
         <div>
-          <p class="eyebrow">Should I Bike? · <span id="current-location">Miramar, Wellington, New Zealand</span></p>
-          <h1 id="page-title">Miramar Cycling Dashboard</h1>
+          <p class="eyebrow">Should I Bike? · <span id="current-location">Finding nearby location…</span></p>
+          <h1 id="page-title">Cycling Dashboard</h1>
           <p class="sub">A three-day ride check. Morning: 06:00–11:00. Afternoon: 12:00–17:00. Times are local to the selected place.</p>
         </div>
         <div class="toolbar">
@@ -29,7 +29,8 @@
           <input id="location-query" type="search" placeholder="Start typing a city or suburb" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="location-options" aria-expanded="false" aria-describedby="location-hint">
           <ul id="location-options" role="listbox" hidden></ul>
         </div>
-        <p class="location-hint" id="location-hint">Type at least 3 letters, then select a suggestion. Your last choice is remembered on this device.</p>
+        <p class="location-hint" id="location-hint">First visit uses an approximate network location. Type at least 3 letters to choose another place. Your choice is remembered on this device.</p>
+        <button class="location-reset" id="use-approx" type="button">Use approximate location</button>
       </section>
 
       <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>

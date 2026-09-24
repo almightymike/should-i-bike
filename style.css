@@ -36,6 +36,8 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 #location-options button { display: block; width: 100%; border: 0; border-radius: 8px; padding: 10px 11px; text-align: left; color: #f8fafc; background: transparent; cursor: pointer; }
 #location-options button:hover, #location-options button:focus-visible, #location-options button.active { background: #375174; outline: none; }
 .location-hint { margin: 7px 0 0; color: #cbd5e1; font-size: .82rem; }
+.location-reset { margin-top: 7px; padding: 0; color: #a8cdfd; background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: .84rem; }
+.location-reset:hover, .location-reset:focus-visible { color: #dbeafe; }
 .status { color: #cbd5e1; min-height: 24px; margin: 12px 0 18px; font-size: .9rem; }
 .status.warning { border-left: 4px solid #f59e0b; border-radius: 12px; background: rgba(245,158,11,.11); color: #fde68a; padding: 12px 14px; }
 .grid { display: grid; gap: 16px; }
