@@ -40,8 +40,16 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .location-reset:hover, .location-reset:focus-visible { color: #dbeafe; }
 .status { color: #cbd5e1; min-height: 24px; margin: 12px 0 18px; font-size: .9rem; }
 .status.warning { border-left: 4px solid #f59e0b; border-radius: 12px; background: rgba(245,158,11,.11); color: #fde68a; padding: 12px 14px; }
+.dashboard-section { padding: 20px; border: 1px solid rgba(255,255,255,.16); border-radius: 26px; margin-bottom: 28px; }
+.highlights-section { background: rgba(59,130,246,.11); border-color: rgba(96,165,250,.4); }
+.forecast-section { background: rgba(255,255,255,.035); }
+.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.section-heading h2 { margin: 0; font-size: 1.45rem; letter-spacing: -.03em; }
+.section-heading p { color: #cbd5e1; margin: 4px 0 0; font-size: .92rem; }
+.scope-tag { flex: none; padding: 7px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #dbeafe; font-size: .8rem; white-space: nowrap; }
+.highlights-section .scope-tag { border-color: rgba(96,165,250,.55); }
 .grid { display: grid; gap: 16px; }
-.top-grid { grid-template-columns: 1.35fr .85fr .85fr; margin-bottom: 18px; }
+.top-grid { grid-template-columns: 1.35fr .85fr .85fr; }
 .days { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .card { min-width: 0; border: 1px solid rgba(255,255,255,.12); border-radius: 24px; padding: 18px; background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025)), #172033; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
 .best { outline: 2px solid #60a5fa; outline-offset: 3px; }
@@ -99,6 +107,8 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
   .summary-head { align-items: center; }
   .score-badge { min-width: 98px; gap: 6px; padding: 5px 7px; }
   .score-number { font-size: 1.65rem; }
+  .dashboard-section { padding: 14px; margin-bottom: 24px; }
+  .section-heading { flex-direction: column; gap: 9px; }
 }
 @media print {
   :root { color: #111827; background: white; }
