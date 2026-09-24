@@ -312,6 +312,7 @@ let selectedLocation = rememberedLocation || DEFAULT_LOCATION;
 let locationChoice = 0;
 let forecastRequest = 0;
 let forecastController;
+let lastRequestedHourKey = null;
 let searchRequest = 0;
 let searchController;
 let searchTimer;
@@ -353,6 +354,7 @@ function chooseLocation(location) {
 
 async function initialiseLocation(force = false) {
   if (rememberedLocation && !force) { loadForecast(); return; }
+  lastRequestedHourKey = null;
   const choice = locationChoice;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 2500);
@@ -471,6 +473,8 @@ async function loadForecast() {
   forecastController?.abort();
   const requestId = ++forecastRequest;
   const location = selectedLocation;
+  const requestClock = localClock(new Date(), location.timezone);
+  lastRequestedHourKey = requestClock.date + ":" + requestClock.hour;
   const controller = new AbortController();
   forecastController = controller;
   button.disabled = true;
@@ -514,10 +518,20 @@ async function loadForecast() {
   }
 }
 
+function refreshWhenHourChanges() {
+  if (document.visibilityState === "hidden" || !lastRequestedHourKey) return;
+  const clock = localClock(new Date(), selectedLocation.timezone);
+  const hourKey = clock.date + ":" + clock.hour;
+  if (hourKey !== lastRequestedHourKey) loadForecast();
+}
+
 if (typeof document !== "undefined") {
   if (rememberedLocation) updateLocationHeader();
   setupLocationSearch();
   document.querySelector("#refresh").addEventListener("click", loadForecast);
+  // Remove expired ride-out times without requiring a manual page reload.
+  setInterval(refreshWhenHourChanges, 30000);
+  document.addEventListener("visibilitychange", refreshWhenHourChanges);
   document.querySelector("#use-approx").addEventListener("click", () => {
     locationChoice++;
     searchRequest++;
