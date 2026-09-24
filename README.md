@@ -21,6 +21,8 @@ If the live site shows an older version after a merge, open the Pages project's 
 - Each window displays the maximum hourly wind, gust and rain probability, the sum of predicted hourly rain, and average temperature.
 - Favourable means wind below 20 km/h, gusts below 35 km/h, rain chance below 30%, and rain below 0.4 mm.
 - Avoid exposed routes means wind at least 30 km/h, gusts at least 50 km/h, rain chance at least 60%, rain at least 1.5 mm, or forecast thunder. Other windows are marked Use caution.
+- Scores split those ratings into five planning bands: 5/5 when wind is below 15 km/h, gusts below 25 km/h, rain chance below 15%, and rain below 0.1 mm; otherwise Favourable is 4/5. Use caution is 3/5 when wind is below 25 km/h, gusts below 42 km/h, rain chance below 45%, and rain below 0.8 mm; otherwise it is 2/5. Avoid is always 1/5.
+- Best and backup are the two highest-scoring complete upcoming windows above 1/5. Within a score band, the lower combined wind, gust and rain burden wins. Weakest is the lowest ranked complete window. If all windows are 1/5, the page recommends no ride.
 - These thresholds are personal planning heuristics, not official safety limits. Route notes compare broad exposure and are not navigation instructions.
 - The page never shows a ride rating when required forecast inputs are missing. It displays `/inco` and states what is missing.
 

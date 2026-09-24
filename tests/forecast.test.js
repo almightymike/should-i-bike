@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { localClock, datesToShow, ratingFor, summariseWindow, renderForecast } = require("../script.js");
+const { localClock, datesToShow, ratingFor, scoreFor, summariseWindow, renderForecast } = require("../script.js");
 
 const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
 
@@ -37,10 +37,22 @@ test("rating limits include gusts and rain even when mean wind is light", () => 
   assert.equal(ratingFor({ ...base, thunder: true }), "avoid");
 });
 
+test("the five scores respect rating thresholds and thunder always scores 1", () => {
+  const calm = { wind: 10, gust: 20, rainChance: 10, rain: 0, thunder: false };
+  assert.equal(scoreFor(calm), 5);
+  assert.equal(scoreFor({ ...calm, gust: 25 }), 4);
+  assert.equal(scoreFor({ ...calm, gust: 35 }), 3);
+  assert.equal(scoreFor({ ...calm, gust: 42 }), 2);
+  assert.equal(scoreFor({ ...calm, gust: 50 }), 1);
+  assert.equal(scoreFor({ ...calm, thunder: true }), 1);
+});
+
 test("a missing hourly value never produces a favourable rating", () => {
   const hourly = fixture();
   hourly.wind_gusts_10m[2] = null;
-  assert.equal(summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 }).state, "incomplete");
+  const result = summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 });
+  assert.equal(result.state, "incomplete");
+  assert.equal(result.score, undefined);
 });
 
 test("today's window uses only future full forecast hours", () => {
@@ -66,4 +78,10 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
   assert.equal((result.html.match(/class="slot good"/g) || []).length, 6);
   assert.match(result.final, /Final call/);
+  assert.match(result.html, /5\/5 · Favourable/);
+  hourly.wind_gusts_10m.fill(55);
+  const unsafe = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
+  assert.match(unsafe.highlights, /Best overall<\/div><div class="headline">No ride recommended/);
+  assert.match(unsafe.final, /All complete upcoming windows score 1\/5/);
+  assert.match(unsafe.html, /1\/5 · Avoid exposed routes/);
 });
