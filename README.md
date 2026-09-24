@@ -1,20 +1,24 @@
 # Should I Bike?
 
-Planned: a dashboard showing whether conditions are suitable for cycling.
+Three-day ride outlook for Miramar, Wellington. Shows morning (8–11 am) and afternoon (1–4 pm) conditions and a simple rating based on wind, gusts, rain probability, predicted rain and thunderstorms.
 
 ## Run locally
 
-Open `index.html` in a browser. No build step or dependencies are needed.
+Open `index.html` in a browser. No build step or dependencies are needed. The browser must be able to reach the Open-Meteo forecast API.
 
 ## Deploy to Cloudflare Pages
 
 Connect this GitHub repository to Cloudflare Pages. Set the production branch to `main`, choose no framework preset, leave the build command blank, and use `.` as the build output directory. The site will publish after the pull request is merged into `main`.
 
-If the site should be private, configure Cloudflare Access for the published domain and verify access in a private browser window before sharing the URL.
+The deployed site uses Cloudflare Access. Keep the production `pages.dev` address and preview addresses covered by separate Access applications. The GitHub repository is public, so do not commit private data or API keys.
 
-## Next steps
+## Forecast logic
 
-- Connect a current weather and wind data source for the next three days.
-- Define ride thresholds and compare morning and afternoon conditions.
-- Add route-specific guidance based on wind direction and exposure.
-Shows a dashboard if its good to bike or not
+- Data comes from Open-Meteo at approximately 41.317° S, 174.817° E, using `Pacific/Auckland` time.
+- Each window displays the maximum hourly wind, gust and rain probability, the sum of predicted hourly rain, and average temperature.
+- Favourable means wind below 20 km/h, gusts below 35 km/h, rain chance below 30%, and rain below 0.4 mm.
+- Avoid exposed routes means wind at least 30 km/h, gusts at least 50 km/h, rain chance at least 60%, rain at least 1.5 mm, or forecast thunder. Other windows are marked Use caution.
+- These thresholds are personal planning heuristics, not official safety limits. Route notes compare broad exposure and are not navigation instructions.
+- The page never shows a ride rating when required forecast inputs are missing. It displays `/inco` and states what is missing.
+
+Forecast data is from [Open-Meteo](https://open-meteo.com/) under CC BY 4.0. The free API is intended for non-commercial use.
