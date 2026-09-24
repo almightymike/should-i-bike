@@ -1,6 +1,6 @@
 # Should I Bike?
 
-A small static starter site for planning rides from Miramar, Wellington. It has a manual ride checklist. It does not fetch live weather data or make a ride recommendation yet.
+Planned: a dashboard showing whether conditions are suitable for cycling.
 
 ## Run locally
 
