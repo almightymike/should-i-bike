@@ -1,18 +1,73 @@
-// Forecast timestamps are returned in Pacific/Auckland local time by Open-Meteo.
-const TIMEZONE = "Pacific/Auckland";
-const API_URL = "https://api.open-meteo.com/v1/forecast?latitude=-41.317&longitude=174.817&hourly=temperature_2m,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code&timezone=Pacific%2FAuckland&forecast_days=4&wind_speed_unit=kmh";
+// Open-Meteo returns hourly timestamps in the selected location's local time.
+const DEFAULT_LOCATION = { name: "Miramar", admin1: "Wellington", country: "New Zealand", country_code: "NZ",
+  latitude: -41.317, longitude: 174.817, timezone: "Pacific/Auckland" };
+const STORAGE_KEY = "should-i-bike-location";
+const FORECAST_API = "https://api.open-meteo.com/v1/forecast";
+const GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
 const WINDOWS = [
   { name: "Morning", hours: [6, 7, 8, 9, 10], label: "06:00–11:00" },
   { name: "Afternoon", hours: [12, 13, 14, 15, 16], label: "12:00–17:00" }
 ];
 const FIELDS = ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"];
 
-function localClock(now = new Date()) {
+function localClock(now = new Date(), timezone = DEFAULT_LOCATION.timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
-    timeZone: TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", hourCycle: "h23"
   }).formatToParts(now).map((part) => [part.type, part.value]));
   return { date: parts.year + "-" + parts.month + "-" + parts.day, hour: Number(parts.hour), minute: Number(parts.minute) };
+}
+
+function locationLabel(location) {
+  return [location.name, location.admin1, location.country]
+    .filter((part, index, parts) => part && parts.findIndex((other) => other.toLowerCase() === part.toLowerCase()) === index)
+    .join(", ");
+}
+
+function isMiramar(location) {
+  return location.name.toLowerCase() === "miramar" && location.country_code === "NZ" &&
+    location.admin1.toLowerCase().includes("wellington");
+}
+
+function validLocation(location) {
+  if (!location || typeof location.name !== "string" || !location.name.trim() ||
+      typeof location.admin1 !== "string" || typeof location.country !== "string" ||
+      typeof location.country_code !== "string" || typeof location.timezone !== "string" ||
+      !Number.isFinite(location.latitude) || Math.abs(location.latitude) > 90 ||
+      !Number.isFinite(location.longitude) || Math.abs(location.longitude) > 180) return false;
+  try { new Intl.DateTimeFormat("en", { timeZone: location.timezone }); return true; }
+  catch { return false; }
+}
+
+function forecastUrl(location) {
+  const url = new URL(FORECAST_API);
+  url.searchParams.set("latitude", location.latitude);
+  url.searchParams.set("longitude", location.longitude);
+  url.searchParams.set("hourly", FIELDS.join(","));
+  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("forecast_days", "4");
+  url.searchParams.set("wind_speed_unit", "kmh");
+  return url.toString();
+}
+
+function geocodingUrl(query) {
+  const url = new URL(GEOCODING_API);
+  url.searchParams.set("name", query);
+  url.searchParams.set("count", "8");
+  url.searchParams.set("language", "en");
+  return url.toString();
+}
+
+function locationMatches(query, results) {
+  const matches = (Array.isArray(results) ? results : [])
+    .filter((result) => result && typeof result === "object")
+    .map(({ name, admin1, country, country_code, latitude, longitude, timezone }) =>
+      ({ name, admin1: admin1 || "", country: country || "", country_code: country_code || "", latitude, longitude, timezone }))
+    .filter(validLocation);
+  const pinned = DEFAULT_LOCATION.name.toLowerCase().startsWith(query.toLowerCase()) ? [DEFAULT_LOCATION] : [];
+  return [...pinned, ...matches]
+    .filter((location, index, all) => all.findIndex((other) => locationLabel(other) === locationLabel(location)) === index)
+    .slice(0, 8);
 }
 
 function datesToShow(hourly, clock) {
@@ -63,10 +118,15 @@ function reasonFor(stats, rating) {
   return "Rain chance could reach " + Math.round(stats.rainChance) + "%.";
 }
 
-function routeFor(rating, direction) {
-  if (rating === "avoid") return "Skip exposed coastal roads; check again later.";
-  if (rating === "caution") return "Shorter sheltered Miramar / Seatoun loop. Check wind from " + direction + ".";
-  return "Evans Bay / Oriental Bay loop is an option. Check open sections for wind from " + direction + ".";
+function routeFor(rating, direction, location) {
+  if (rating === "avoid") return isMiramar(location) ? "Skip exposed coastal roads; check again later." :
+    "No ride recommended. Check conditions again later.";
+  if (isMiramar(location)) {
+    if (rating === "caution") return "Shorter sheltered Miramar / Seatoun loop. Check wind from " + direction + ".";
+    return "Evans Bay / Oriental Bay loop is an option. Check open sections for wind from " + direction + ".";
+  }
+  if (rating === "caution") return "Prefer a short sheltered route and check wind from " + direction + ".";
+  return "Consider a local route. Check open sections for wind from " + direction + ".";
 }
 
 function summariseWindow(hourly, date, window, clock) {
@@ -109,7 +169,7 @@ function scoreBadge(result) {
     '<span class="score-label">' + title + '</span></span>';
 }
 
-function windowHtml(result, window) {
+function windowHtml(result, window, location) {
   if (result.state !== "ready") {
     const message = result.state === "passed" ? "This ride window has passed in Wellington." : "/inco: Hourly forecast data is missing. No rating shown.";
     return '<section class="slot unavailable"><div class="slot-head"><span class="slot-title">' + window.name + '</span><span class="rating">' +
@@ -128,8 +188,9 @@ function windowHtml(result, window) {
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
     '<div class="condition"><span>Rain chance:</span> ' + Math.round(stats.rainChance) + '%</div>' +
     '<div class="condition"><span>Rain total:</span> ' + stats.rain.toFixed(1) + ' mm</div>' +
-    '<div class="condition"><span>Exposure:</span> ' + (result.rating === "good" ? "check open sections" : "avoid open coast") + '</div></div>' +
-    '<p class="route"><strong>Route:</strong> ' + routeFor(result.rating, stats.direction) + '</p></section>';
+    '<div class="condition"><span>Exposure:</span> ' + (result.rating === "good" ? "check open sections" :
+      isMiramar(location) ? "avoid open coast" : "limit exposed sections") + '</div></div>' +
+    '<p class="route"><strong>Route:</strong> ' + routeFor(result.rating, stats.direction, location) + '</p></section>';
 }
 
 function rankWindow(entry) {
@@ -137,7 +198,7 @@ function rankWindow(entry) {
   return stats.gust * 2 + stats.wind + stats.rainChance + stats.rain * 20;
 }
 
-function highlightHtml(label, entry, emphasis = false, emptyText = "No comparable window", emptyNote = "Check the day cards for passed or incomplete windows.") {
+function highlightHtml(label, entry, location, emphasis = false, emptyText = "No comparable window", emptyNote = "Check the day cards for passed or incomplete windows.") {
   if (!entry) return '<article class="card"><div class="label">' + label + '</div><div class="headline">' + emptyText + '</div>' +
     '<p class="meta">' + emptyNote + '</p></article>';
   const { stats } = entry.result;
@@ -146,10 +207,10 @@ function highlightHtml(label, entry, emphasis = false, emptyText = "No comparabl
     '<div class="meta">' + entry.window.label + ' · ' + reasonFor(stats, entry.result.rating) + '</div>' +
     '<div class="chips"><span class="chip">' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h</span>' +
     '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain ' + Math.round(stats.rainChance) + '%</span></div>' +
-    '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction) + '</p></article>';
+    '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location) + '</p></article>';
 }
 
-function renderForecast(hourly, clock) {
+function renderForecast(hourly, clock, location = DEFAULT_LOCATION) {
   const dates = datesToShow(hourly, clock);
   let incomplete = false;
   const entries = [];
@@ -158,7 +219,7 @@ function renderForecast(hourly, clock) {
       const result = summariseWindow(hourly, date, window, clock);
       if (result.state === "incomplete") incomplete = true;
       if (result.state === "ready") entries.push({ date, window, result });
-      return windowHtml(result, window);
+      return windowHtml(result, window, location);
     }).join("");
     return '<article class="card day-card"><div class="day-title"><div><h2>' + dateLabel(date) + '</h2>' +
       '<p class="meta">' + (date === clock.date ? "Today in Wellington" : "Morning and afternoon outlook") + '</p></div>' +
@@ -169,11 +230,11 @@ function renderForecast(hourly, clock) {
   const best = rideOptions[0];
   const backup = rideOptions[1];
   const weakest = ranked.length > 1 ? ranked.at(-1) : null;
-  const highlights = highlightHtml("Best overall", best, true, entries.length ? "No ride recommended" : "Forecast incomplete",
+  const highlights = highlightHtml("Best overall", best, location, true, entries.length ? "No ride recommended" : "Forecast incomplete",
     entries.length ? "Every complete window is 1/5. Check again later." : "/inco: No complete upcoming window can be rated.") +
-    highlightHtml("Best backup", backup, false, best ? "No backup available" : "No ride recommended",
+    highlightHtml("Best backup", backup, location, false, best ? "No backup available" : "No ride recommended",
       best ? "No second ride option scores above 1/5." : "No complete ride option scores above 1/5.") +
-    highlightHtml("Weakest option", weakest);
+    highlightHtml("Weakest option", weakest, location);
   const final = '<article class="card"><div class="label">Final call</div><div class="headline">' +
     (best ? dateLabel(best.date) + ' · ' + best.window.name + ' · ' + best.result.score + '/5' :
       entries.length ? "No ride recommended" : "Forecast incomplete") +
@@ -181,10 +242,146 @@ function renderForecast(hourly, clock) {
     (backup ? ' Backup: ' + dateLabel(backup.date) + ' ' + backup.window.name + ' (' + backup.result.score + '/5).' : '') :
     entries.length ? 'All complete upcoming windows score 1/5. Avoid exposed routes and check again later.' :
       '/inco: No complete upcoming window can be rated.') + '</p></article>' +
-    '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast for Miramar from Open-Meteo. ' +
+    '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast from Open-Meteo for the selected location. ' +
     'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Each window uses the strongest wind and gust, highest rain chance, and total predicted rain. ' +
     'Check current conditions and route exposure before leaving.</p></article>';
   return { html: cards.join(""), highlights, final, incomplete };
+}
+
+function savedLocation() {
+  try {
+    const location = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (validLocation(location)) return location;
+  } catch { /* Private browsing can block storage. */ }
+  return DEFAULT_LOCATION;
+}
+
+let selectedLocation = typeof document === "undefined" ? DEFAULT_LOCATION : savedLocation();
+let forecastRequest = 0;
+let forecastController;
+let searchRequest = 0;
+let searchController;
+let searchTimer;
+let suggestions = [];
+let activeSuggestion = -1;
+
+function updateLocationHeader() {
+  document.querySelector("#current-location").textContent = locationLabel(selectedLocation);
+  document.querySelector("#page-title").textContent = selectedLocation.name + " Cycling Dashboard";
+  document.title = "Should I Bike? | " + selectedLocation.name + " Cycling Dashboard";
+}
+
+function closeSuggestions() {
+  const list = document.querySelector("#location-options");
+  const input = document.querySelector("#location-query");
+  list.replaceChildren();
+  list.hidden = true;
+  input.setAttribute("aria-expanded", "false");
+  input.removeAttribute("aria-activedescendant");
+  suggestions = [];
+  activeSuggestion = -1;
+}
+
+function chooseLocation(location) {
+  if (!validLocation(location)) return;
+  clearTimeout(searchTimer);
+  searchRequest++;
+  searchController?.abort();
+  selectedLocation = location;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(location)); } catch { /* Storage is optional. */ }
+  document.querySelector("#location-query").value = "";
+  document.querySelector("#location-hint").textContent = "Showing " + locationLabel(location) + ". Type to choose another location.";
+  closeSuggestions();
+  updateLocationHeader();
+  loadForecast();
+}
+
+function markSuggestion(index) {
+  activeSuggestion = index;
+  const input = document.querySelector("#location-query");
+  document.querySelectorAll("#location-options button").forEach((button, position) => {
+    button.classList.toggle("active", position === index);
+    button.setAttribute("aria-selected", String(position === index));
+  });
+  if (index >= 0) input.setAttribute("aria-activedescendant", "location-option-" + index);
+  else input.removeAttribute("aria-activedescendant");
+}
+
+function showSuggestions(locations) {
+  closeSuggestions();
+  suggestions = locations;
+  const list = document.querySelector("#location-options");
+  for (const [index, location] of locations.entries()) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = "location-option-" + index;
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", "false");
+    button.textContent = locationLabel(location);
+    button.addEventListener("click", () => chooseLocation(location));
+    item.append(button);
+    list.append(item);
+  }
+  list.hidden = locations.length === 0;
+  document.querySelector("#location-query").setAttribute("aria-expanded", String(locations.length > 0));
+}
+
+async function searchLocations(query, requestId) {
+  const hint = document.querySelector("#location-hint");
+  const pinned = locationMatches(query, []);
+  if (pinned.length) showSuggestions(pinned);
+  const controller = new AbortController();
+  searchController = controller;
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(geocodingUrl(query), { signal: controller.signal });
+    if (!response.ok) throw new Error("Location search returned " + response.status);
+    const data = await response.json();
+    if (requestId !== searchRequest) return;
+    const locations = locationMatches(query, data.results);
+    showSuggestions(locations);
+    hint.textContent = locations.length ? "Select a suggestion, or use the arrow keys and Enter." : "No matches. Try a city name or a longer search.";
+  } catch (error) {
+    if (requestId !== searchRequest) return;
+    if (!pinned.length) closeSuggestions();
+    hint.textContent = pinned.length ? "Miramar is available. Other suggestions could not load." :
+      error.name === "AbortError" ? "Location search timed out. Try again." : "Location search unavailable. Try again.";
+  } finally { clearTimeout(timer); }
+}
+
+function setupLocationSearch() {
+  const input = document.querySelector("#location-query");
+  input.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchRequest++;
+    searchController?.abort();
+    closeSuggestions();
+    const query = input.value.trim();
+    const hint = document.querySelector("#location-hint");
+    if (query.length < 3) {
+      hint.textContent = "Type at least 3 letters to see location suggestions.";
+      return;
+    }
+    hint.textContent = "Searching locations…";
+    const requestId = searchRequest;
+    searchTimer = setTimeout(() => searchLocations(query, requestId), 250);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") { closeSuggestions(); return; }
+    if (!suggestions.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      markSuggestion(activeSuggestion < 0 ? (event.key === "ArrowDown" ? 0 : suggestions.length - 1) :
+        (activeSuggestion + (event.key === "ArrowDown" ? 1 : suggestions.length - 1)) % suggestions.length);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      chooseLocation(suggestions[activeSuggestion < 0 ? 0 : activeSuggestion]);
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!document.querySelector(".location-picker").contains(event.target)) closeSuggestions();
+  });
 }
 
 async function loadForecast() {
@@ -194,29 +391,39 @@ async function loadForecast() {
   const final = document.querySelector("#final-cards");
   const updated = document.querySelector("#updated");
   const button = document.querySelector("#refresh");
+  forecastController?.abort();
+  const requestId = ++forecastRequest;
+  const location = selectedLocation;
+  const controller = new AbortController();
+  forecastController = controller;
   button.disabled = true;
   status.classList.remove("warning");
-  status.textContent = "Loading the latest forecast…";
-  const controller = new AbortController();
+  status.textContent = "Loading forecast for " + locationLabel(location) + "…";
+  grid.replaceChildren();
+  highlights.replaceChildren();
+  final.replaceChildren();
   const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const response = await fetch(API_URL, { cache: "no-store", signal: controller.signal });
+    const response = await fetch(forecastUrl(location), { cache: "no-store", signal: controller.signal });
     if (!response.ok) throw new Error("Weather service returned " + response.status + ".");
     const payload = await response.json();
-    if (!payload.hourly || !Array.isArray(payload.hourly.time) || payload.timezone !== TIMEZONE) {
+    if (requestId !== forecastRequest) return;
+    if (!payload.hourly || !Array.isArray(payload.hourly.time) || typeof payload.timezone !== "string") {
       throw new Error("The weather service returned an unexpected forecast.");
     }
-    const clock = localClock();
-    const result = renderForecast(payload.hourly, clock);
+    const clock = localClock(new Date(), payload.timezone);
+    const result = renderForecast(payload.hourly, clock, location);
     grid.innerHTML = result.html;
     highlights.innerHTML = result.highlights;
     final.innerHTML = result.final;
-    updated.textContent = "Updated " + dateLabel(clock.date) + " · " + String(clock.hour).padStart(2, "0") + ":" +
-      String(clock.minute).padStart(2, "0") + " NZ time";
+    updated.textContent = "Checked " + dateLabel(clock.date) + " · " + String(clock.hour).padStart(2, "0") + ":" +
+      String(clock.minute).padStart(2, "0") + " local time";
     status.textContent = result.incomplete ? "/inco: Some hourly forecast data is missing. Affected windows have no rating." :
-      "Forecast checked at " + String(clock.hour).padStart(2, "0") + ":" + String(clock.minute).padStart(2, "0") + " Wellington time.";
+      "Forecast checked for " + locationLabel(location) + " at " + String(clock.hour).padStart(2, "0") + ":" +
+      String(clock.minute).padStart(2, "0") + " local time.";
     if (result.incomplete) status.classList.add("warning");
   } catch (error) {
+    if (requestId !== forecastRequest) return;
     grid.replaceChildren();
     highlights.replaceChildren();
     final.replaceChildren();
@@ -226,15 +433,18 @@ async function loadForecast() {
     console.error("Forecast load failed:", error);
   } finally {
     clearTimeout(timer);
-    button.disabled = false;
+    if (requestId === forecastRequest) button.disabled = false;
   }
 }
 
 if (typeof document !== "undefined") {
+  updateLocationHeader();
+  setupLocationSearch();
   document.querySelector("#refresh").addEventListener("click", loadForecast);
   loadForecast();
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, summariseWindow, renderForecast };
+  module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, summariseWindow, renderForecast,
+    locationLabel, validLocation, forecastUrl, geocodingUrl, locationMatches };
 }
