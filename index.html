@@ -4,49 +4,58 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#102c28">
-    <title>Should I Bike?</title>
-    <meta name="description" content="A simple place to check ride conditions before heading out.">
+    <title>Should I Bike? | Miramar forecast</title>
+    <meta name="description" content="A three-day cycling outlook for Miramar, Wellington, with morning and afternoon wind and rain forecasts.">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="#top">Should I Bike?</a>
-      <span class="location">Miramar, Wellington</span>
+      <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true">◒</span> Should I Bike?</a>
+      <span class="location">Miramar, Wellington <span aria-hidden="true">·</span> NZ time</span>
     </header>
 
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
-        <p class="eyebrow">Ride planning</p>
-        <h1 id="hero-title">A better call before you roll.</h1>
-        <p class="intro">Check the weather, wind and route before deciding whether to ride. This is the starting point for a three-day cycling forecast.</p>
-        <a class="button" href="#checklist">Use the ride checklist</a>
+        <div class="hero-copy">
+          <p class="eyebrow">Your next ride starts here</p>
+          <h1 id="hero-title">Pick the better window.</h1>
+          <p class="intro">Three days of morning and afternoon ride outlooks. Built around the wind and rain that can change a Wellington ride.</p>
+          <div class="hero-actions">
+            <a class="button" href="#forecast">View the forecast <span aria-hidden="true">↗</span></a>
+            <span class="hero-caption">Updated when you open this page</span>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true"><span class="sun"></span><span class="horizon"></span><span class="road road-one"></span><span class="road road-two"></span></div>
       </section>
 
-      <section class="notice" aria-labelledby="notice-title">
-        <div class="notice-icon" aria-hidden="true">i</div>
+      <section class="forecast-section" id="forecast" aria-labelledby="forecast-title">
+        <div class="section-top">
+          <div>
+            <p class="eyebrow dark">Miramar outlook</p>
+            <h2 id="forecast-title">The next three days</h2>
+            <p class="section-intro">Morning: 8–11 am. Afternoon: 1–4 pm. Times are local to Wellington.</p>
+          </div>
+          <button class="refresh" id="refresh" type="button">Refresh forecast</button>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
+        <div class="forecast-grid" id="forecast-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="explainer" aria-labelledby="explainer-title">
         <div>
-          <h2 id="notice-title">Live forecast coming later</h2>
-          <p>This starter site does not fetch weather data or recommend a ride yet. Check a current forecast before heading out.</p>
+          <p class="eyebrow dark">How to read this</p>
+          <h2 id="explainer-title">A guide, not a guarantee.</h2>
+          <p>Each window uses the strongest forecast wind and gust, highest rain chance, and total predicted rain during those hours. The rating is a simple personal planning rule. Conditions can differ on exposed roads and change quickly.</p>
+        </div>
+        <div class="thresholds">
+          <div><span class="key key-good"></span><strong>Favourable</strong><span>Wind under 20 km/h, gusts under 35 km/h, rain chance under 30%, and rain under 0.4 mm.</span></div>
+          <div><span class="key key-caution"></span><strong>Use caution</strong><span>Above a favourable limit, but below the avoid limits.</span></div>
+          <div><span class="key key-avoid"></span><strong>Avoid exposed routes</strong><span>Wind 30+ km/h, gusts 50+ km/h, rain chance 60%+, rain 1.5+ mm, or forecast thunder.</span></div>
         </div>
       </section>
-
-      <section class="checklist" id="checklist" aria-labelledby="checklist-title">
-        <div class="section-heading">
-          <p class="eyebrow">Before you leave</p>
-          <h2 id="checklist-title">Ride checklist</h2>
-          <p>Use these prompts with a current forecast. Your selections stay in this browser only until you close or refresh the page.</p>
-        </div>
-        <div class="check-grid">
-          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Wind</strong><small>Check sustained wind and gusts along the route.</small></span></label>
-          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Rain</strong><small>Check timing, intensity and road conditions.</small></span></label>
-          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Visibility</strong><small>Consider daylight, fog and your lights.</small></span></label>
-          <label class="check-item"><input type="checkbox" name="ride-check"><span><strong>Route</strong><small>Choose a route that suits the conditions.</small></span></label>
-        </div>
-        <p class="progress" id="progress" aria-live="polite">0 of 4 checks reviewed.</p>
-      </section>
+      <p class="source">Forecast data: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0). Miramar coordinates approximate. Check a current forecast and local road conditions before riding. Route notes compare broad exposure, not turn-by-turn safety.</p>
     </main>
-
-    <footer>Should I Bike? · Built for thoughtful rides from Miramar.</footer>
+    <footer>Should I Bike? <span aria-hidden="true">·</span> Made for rides from Miramar.</footer>
   </body>
 </html>
