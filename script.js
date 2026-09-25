@@ -5,7 +5,7 @@ const STORAGE_KEY = "should-i-bike-location";
 const FORECAST_API = "https://api.open-meteo.com/v1/forecast";
 const GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
 const RIDE_HOURS = 2;
-const RIDE_MIN_TEMP_C = 12;
+const RIDE_MIN_TEMP_C = 5;
 const WINDOWS = [
   { name: "Morning", hours: [5, 6, 7, 8, 9, 10, 11], label: "05:00–11:59" },
   { name: "Afternoon", hours: [12, 13, 14, 15, 16, 17], label: "12:00–17:59" },
@@ -115,26 +115,58 @@ function prevailingDirection(rows) {
 
 function ratingFor(stats) {
   if (stats.thunder || stats.wind >= 30 || stats.gust >= 50 || stats.rainChance >= 60 || stats.rain >= 1.5) return "avoid";
-  if (stats.wind >= 20 || stats.gust >= 35 || stats.rainChance >= 30 || stats.rain >= 0.4) return "caution";
+  if (stats.wind >= 20 || stats.gust >= 35 || stats.rainChance >= 30 || stats.rain >= 0.4 ||
+      stats.minTemp < 10 || stats.maxTemp >= 27) return "caution";
   return "good";
 }
 
 function scoreFor(stats) {
   const rating = ratingFor(stats);
   if (rating === "avoid") return 1;
+  const comfortCap = stats.minTemp < 5 || stats.maxTemp >= 27 ? 2 :
+    stats.minTemp < 10 ? 3 : stats.minTemp < 15 || stats.maxTemp >= 23 ? 4 : 5;
   if (rating === "good") {
-    return stats.wind < 15 && stats.gust < 25 && stats.rainChance < 15 && stats.rain < 0.1 ? 5 : 4;
+    return Math.min(comfortCap, stats.wind < 15 && stats.gust < 25 && stats.rainChance < 15 && stats.rain < 0.1 ? 5 : 4);
   }
-  return stats.wind < 25 && stats.gust < 42 && stats.rainChance < 45 && stats.rain < 0.8 ? 3 : 2;
+  return Math.min(comfortCap, stats.wind < 25 && stats.gust < 42 && stats.rainChance < 45 && stats.rain < 0.8 ? 3 : 2);
 }
 
 function reasonFor(stats, rating) {
   if (stats.thunder) return "Thunder is forecast in this window.";
-  if (rating === "good") return "Wind and rain stay below the caution limits.";
   if (stats.gust >= (rating === "avoid" ? 50 : 35)) return "Gusts could reach " + Math.round(stats.gust) + " km/h.";
   if (stats.wind >= (rating === "avoid" ? 30 : 20)) return "Wind could reach " + Math.round(stats.wind) + " km/h.";
   if (stats.rain >= (rating === "avoid" ? 1.5 : 0.4)) return "Rain could total " + stats.rain.toFixed(1) + " mm.";
+  if (stats.rainChance >= (rating === "avoid" ? 60 : 30)) return "Rain chance could reach " + Math.round(stats.rainChance) + "%.";
+  if (stats.minTemp < 10 || stats.maxTemp >= 27) return "Temperature needs extra preparation for this ride.";
+  if (rating === "good") return "Wind and rain stay below the caution limits.";
   return "Rain chance could reach " + Math.round(stats.rainChance) + "%.";
+}
+
+function temperatureRange(stats) {
+  const low = Math.round(stats.minTemp);
+  const high = Math.round(stats.maxTemp);
+  return low === high ? low + "°C" : low + "–" + high + "°C";
+}
+
+function temperatureAdvice(stats) {
+  const notes = [];
+  if (stats.minTemp < 5) notes.push("Very cold. Check for ice and dress for the conditions.");
+  else if (stats.minTemp < 10) notes.push("Cold ride. Wear warm layers and gloves.");
+  else if (stats.minTemp < 15) notes.push("Cool ride. Bring a light layer.");
+  if (stats.maxTemp >= 27) notes.push("Hot ride. Consider an earlier time and take heat precautions.");
+  else if (stats.maxTemp >= 23) notes.push("Warm ride. Bring water and ease your effort.");
+  return notes.join(" ") || "Comfortable riding temperature.";
+}
+
+function clothingAdvice(stats) {
+  const windy = stats.wind >= 20 || stats.gust >= 35;
+  let advice = stats.minTemp < 10 ? "Wear warm layers and full-finger gloves." :
+    stats.minTemp < 15 ? "Wear a light layer." :
+    stats.maxTemp >= 23 ? "Wear breathable cycling kit." : "Your usual cycling kit is fine.";
+  if (stats.rain >= 0.4) advice += " Bring a waterproof jacket.";
+  else if (stats.rain > 0 || stats.rainChance >= 30) advice += " Pack a light rain jacket.";
+  else if (windy) advice += stats.maxTemp >= 23 ? " Secure loose clothing in the wind." : " Bring a windproof gilet.";
+  return advice;
 }
 
 function routeFor(rating, direction, location) {
@@ -159,6 +191,8 @@ function statsForRows(rows) {
     rainChance: Math.max(...rows.map((row) => row.precipitation_probability)),
     rain: rows.reduce((sum, row) => sum + Math.max(row.precipitation, 0), 0),
     temp: rows.reduce((sum, row) => sum + row.temperature_2m, 0) / rows.length,
+    minTemp: Math.min(...rows.map((row) => row.temperature_2m)),
+    maxTemp: Math.max(...rows.map((row) => row.temperature_2m)),
     direction: prevailingDirection(rows),
     thunder: rows.some((row) => row.weather_code >= 95)
   };
@@ -189,7 +223,7 @@ function summariseWindow(hourly, date, window, clock) {
     const rideRows = rows.slice(i, i + RIDE_HOURS);
     const pair = statsForRows(rideRows);
     pairs.push({ hour: futureHours[i], stats: pair, score: scoreFor(pair), rating: ratingFor(pair),
-      cold: rideRows.some((row) => row.temperature_2m < RIDE_MIN_TEMP_C) });
+      cold: pair.minTemp < RIDE_MIN_TEMP_C });
   }
   const bestPair = pairs.filter((pair) => pair.score > 1 && !pair.cold)
     .sort((a, b) => b.score - a.score || weatherBurden(a.stats) - weatherBurden(b.stats) || a.hour - b.hour)[0];
@@ -230,13 +264,14 @@ function windowHtml(result, window, location) {
     '</span><span class="rating score-text ' + result.rating + '" aria-label="Ride score ' + result.score + ' out of 5, ' +
     titles[result.rating] + '">' + result.score + '/5 · ' + titles[result.rating] +
     '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
-    '<div class="conditions"><div class="condition"><span>Temp:</span> ' + Math.round(stats.temp) + '°C</div>' +
+    '<div class="conditions"><div class="condition"><span>Temp:</span> ' + temperatureRange(stats) + '</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
     '<div class="condition"><span>Rain chance:</span> ' + Math.round(stats.rainChance) + '%</div>' +
     '<div class="condition"><span>Rain total:</span> ' + stats.rain.toFixed(1) + ' mm</div>' +
     '<div class="condition"><span>Exposure:</span> ' + (result.rating === "good" ? "check open sections" :
       isMiramar(location) ? "avoid open coast" : "limit exposed sections") + '</div></div>' +
+    '<p class="note">' + temperatureAdvice(stats) + '</p>' +
     '<p class="route"><strong>Route:</strong> ' + routeFor(result.rating, stats.direction, location) + '</p></section>';
 }
 
@@ -248,10 +283,13 @@ function highlightHtml(label, entry, location, emphasis = false, emptyText = "No
     '<div class="summary-head"><div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' + scoreBadge(entry.result) + '</div>' +
     '<div class="ride-out">' + (weakest ? "Weakest stretch: " : "Ride out: ") + rideRange(entry.result.hour) + '</div>' +
     '<div class="meta">' + reasonFor(stats, entry.result.rating) +
-    (entry.result.cold ? ' Below the 12°C ride-out minimum.' : '') + '</div>' +
-    '<div class="chips"><span class="chip">Temp ' + Math.round(stats.temp) + '°C</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</span>' +
+    (entry.result.cold ? ' Below the 5°C ride-out recommendation limit.' : '') + '</div>' +
+    '<div class="chips"><span class="chip">Temp ' + temperatureRange(stats) + '</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</span>' +
     '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain chance ' + Math.round(stats.rainChance) + '%</span>' +
     '<span class="chip">Rain total ' + stats.rain.toFixed(1) + ' mm</span></div>' +
+    (weakest || entry.result.rating === "avoid" ? '' :
+      '<p class="note"><strong>What to wear:</strong> ' + clothingAdvice(stats) + '</p>') +
+    (stats.maxTemp >= 23 ? '<p class="note">' + temperatureAdvice(stats) + '</p>' : '') +
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location) + '</p></article>';
 }
 
@@ -295,7 +333,7 @@ function renderForecast(hourly, clock, location = DEFAULT_LOCATION) {
       '/inco: No complete upcoming window can be rated.') + '</p></article>' +
     '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast from Open-Meteo for the selected location. ' +
     'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Forecast cards rate the entire time window. Ride highlights score and show conditions for a two-hour stretch only. ' +
-    'Ride-out options need both hours at least 12°C. Night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
+    'Temperature affects scores: 15–22°C is preferred, 5–9°C can still be recommended with caution, and rides below 5°C are not selected as best or backup. These are comfort rules, not universal safety limits. Night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
   return { html: cards.join(""), highlights, final, incomplete };
 }
 
@@ -546,6 +584,7 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, summariseWindow, renderForecast,
+  module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice, clothingAdvice,
+    summariseWindow, renderForecast,
     locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches };
 }
