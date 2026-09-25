@@ -14,8 +14,7 @@
 body {
   margin: 0;
   line-height: 1.45;
-  background: radial-gradient(circle at top left, rgba(249,115,22,.13), transparent 32rem),
-    radial-gradient(circle at top right, rgba(251,146,60,.07), transparent 30rem), var(--charcoal);
+  background: var(--charcoal);
 }
 button { font: inherit; }
 a { color: var(--coral); }
@@ -47,18 +46,18 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .status { color: var(--slate); min-height: 24px; margin: 12px 0 18px; font-size: .9rem; }
 .status.warning { border-left: 4px solid var(--amber); border-radius: 12px; background: rgba(250,204,21,.11); color: var(--amber); padding: 12px 14px; }
 .dashboard-section { padding: 20px; border: 1px solid rgba(255,255,255,.16); border-radius: 26px; margin-bottom: 28px; }
-.highlights-section { background: rgba(249,115,22,.075); border-color: rgba(249,115,22,.4); }
-.forecast-section { background: rgba(255,255,255,.035); }
+.highlights-section { background: rgba(203,213,225,.045); border-color: rgba(203,213,225,.26); }
+.forecast-section { background: rgba(255,255,255,.02); }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .section-heading h2 { margin: 0; font-size: 1.45rem; letter-spacing: -.03em; }
 .section-heading p { color: var(--slate); margin: 4px 0 0; font-size: .92rem; }
 .scope-tag { flex: none; padding: 7px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: var(--slate); font-size: .8rem; white-space: nowrap; }
-.highlights-section .scope-tag { border-color: rgba(249,115,22,.55); color: var(--coral); }
+.highlights-section .scope-tag { border-color: rgba(203,213,225,.28); }
 .grid { display: grid; gap: 16px; }
 .top-grid { grid-template-columns: 1.35fr .85fr .85fr; }
 .days { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .card { min-width: 0; border: 1px solid rgba(203,213,225,.16); border-radius: 24px; padding: 18px; background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)), #1a2433; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
-.best { outline: 2px solid var(--orange); outline-offset: 3px; }
+.best { border-left: 4px solid var(--orange); }
 .card h2, .card h3 { margin: 0; letter-spacing: -.03em; }
 .label { margin-bottom: 9px; }
 .headline { font-size: 1.55rem; font-weight: 750; letter-spacing: -.035em; line-height: 1.18; }
@@ -71,8 +70,8 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .badge { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.07); border-radius: 999px; padding: 8px 11px; font-size: .82rem; color: var(--slate); text-align: center; white-space: nowrap; }
 .slot { border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 15px; margin-top: 12px; }
 .slot.good { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.55); }
-.slot.caution { background: rgba(250,204,21,.13); border-color: rgba(250,204,21,.58); }
-.slot.avoid { background: rgba(251,146,60,.15); border-color: rgba(251,146,60,.65); }
+.slot.caution { background: rgba(250,204,21,.09); border-color: rgba(250,204,21,.42); }
+.slot.avoid { background: rgba(251,146,60,.08); border-color: rgba(251,146,60,.43); }
 .slot.unavailable { background: rgba(255,255,255,.045); }
 .slot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .slot-title { font-size: 1.1rem; font-weight: 750; }
@@ -89,7 +88,7 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .score-total { font-size: .85rem; font-weight: 750; letter-spacing: 0; }
 .score-label { max-width: 92px; font-size: .7rem; font-weight: 750; line-height: 1.1; }
 .slot-line { margin-top: 8px; color: var(--slate); font-size: .9rem; }
-.ride-out { margin-top: 9px; color: var(--coral); font-weight: 750; font-size: .94rem; }
+.ride-out { margin-top: 9px; color: var(--slate); font-weight: 750; font-size: .94rem; }
 .conditions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.16); border-radius: 16px; }
 .condition { font-size: .88rem; min-width: 0; }
 .condition span { color: var(--slate); }
