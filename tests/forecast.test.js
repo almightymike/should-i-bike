@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice, clothingAdvice, summariseWindow, renderForecast,
-  locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches } = require("../script.js");
+  locationLabel, validLocation, approximateLocation, forecastUrl, mapUrl, mapViewUrl,
+  geocodingUrl, locationMatches } = require("../script.js");
 
 const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
 
@@ -49,6 +50,19 @@ test("selected locations set coordinates and use local forecast time", () => {
   assert.equal(locationLabel(estimate), "Wellington, New Zealand");
   assert.equal(estimate.approximate, true);
   assert.equal(approximateLocation({ ...estimate, timezone: "Invalid/Timezone" }), null);
+});
+
+test("map preview follows the selected coordinates without a map key", () => {
+  const miramar = { latitude: -41.317, longitude: 174.817 };
+  const map = new URL(mapUrl(miramar));
+  assert.equal(map.origin, "https://www.openstreetmap.org");
+  assert.equal(map.searchParams.get("marker"), "-41.31700,174.81700");
+  const bounds = map.searchParams.get("bbox").split(",").map(Number);
+  assert.equal(bounds.length, 4);
+  assert.ok(bounds[0] < miramar.longitude && bounds[2] > miramar.longitude);
+  assert.ok(bounds[1] < miramar.latitude && bounds[3] > miramar.latitude);
+  assert.equal(new URL(mapViewUrl(miramar)).searchParams.get("mlat"), "-41.317");
+  assert.equal(new URL(mapUrl({ latitude: 48.85, longitude: 2.35 })).searchParams.get("marker"), "48.85000,2.35000");
 });
 
 test("wind directions use full compass names", () => {
