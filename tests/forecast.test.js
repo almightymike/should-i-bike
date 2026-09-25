@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
-const { localClock, datesToShow, compass, ratingFor, scoreFor, summariseWindow, renderForecast,
+const { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice, summariseWindow, renderForecast,
   locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches } = require("../script.js");
 
 const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
@@ -95,6 +95,23 @@ test("the five scores respect rating thresholds and thunder always scores 1", ()
   assert.equal(scoreFor({ ...calm, thunder: true }), 1);
 });
 
+test("temperature adjusts comfort scores without hiding cold but rideable weather", () => {
+  const calm = { wind: 10, gust: 20, rainChance: 10, rain: 0, thunder: false };
+  for (const [temp, score, rating] of [[4, 2, "caution"], [5, 3, "caution"], [9, 3, "caution"],
+    [10, 4, "good"], [14, 4, "good"], [15, 5, "good"], [22, 5, "good"],
+    [23, 4, "good"], [26, 4, "good"], [27, 2, "caution"]]) {
+    assert.equal(scoreFor({ ...calm, minTemp: temp, maxTemp: temp }), score, temp + "°C score");
+    assert.equal(ratingFor({ ...calm, minTemp: temp, maxTemp: temp }), rating, temp + "°C rating");
+  }
+  assert.equal(scoreFor({ ...calm, minTemp: 18, maxTemp: 18, thunder: true }), 1);
+  assert.equal(temperatureRange({ minTemp: 9, maxTemp: 13 }), "9–13°C");
+  assert.equal(temperatureAdvice({ minTemp: 9, maxTemp: 13 }), "Cold ride. Wear warm layers and gloves.");
+  assert.equal(temperatureAdvice({ minTemp: 18, maxTemp: 18 }), "Comfortable riding temperature.");
+  assert.equal(temperatureAdvice({ minTemp: 23, maxTemp: 26 }), "Warm ride. Bring water and ease your effort.");
+  assert.equal(temperatureAdvice({ minTemp: 4, maxTemp: 27 }),
+    "Very cold. Check for ice and dress for the conditions. Hot ride. Consider an earlier time and take heat precautions.");
+});
+
 test("a missing hourly value never produces a favourable rating", () => {
   const hourly = fixture();
   hourly.wind_gusts_10m[2] = null;
@@ -122,6 +139,10 @@ test("ride-out time picks the best consecutive two-hour stretch within the windo
   hourly.temperature_2m = [8, 8, 9, 12, 12];
   assert.equal(summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 }).rideOutHour, 9);
   hourly.temperature_2m.fill(8);
+  const cold = summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 });
+  assert.equal(cold.rideOutHour, 8);
+  assert.equal(cold.bestPair.score, 3);
+  hourly.temperature_2m.fill(4);
   assert.equal(summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 }).rideOutHour, null);
   const night = { name: "Night", hours: [18, 19, 20, 21, 22, 23] };
   const nightData = fixture();
@@ -142,6 +163,7 @@ test("dashboard ranks complete future windows and renders the reference card sec
     hourly[field] = time.map(() => ({ temperature_2m: 14, precipitation_probability: 10, precipitation: 0,
       wind_speed_10m: 10, wind_gusts_10m: 20, wind_direction_10m: 0, weather_code: 1 })[field]);
   }
+  hourly.temperature_2m.fill(18);
   const result = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(result.highlights, /Best overall/);
   assert.match(result.highlights, /Best backup/);
@@ -153,6 +175,8 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.highlights, /Ride out: 05:00/);
   assert.match(result.highlights, /Wind 10 km\/h North/);
   assert.match(result.highlights, /Rain total 0.0 mm/);
+  assert.match(result.highlights, /Temp 18°C/);
+  assert.match(result.highlights, /Comfortable riding temperature/);
   assert.match(result.highlights, /Weakest stretch:/);
   assert.match(result.final, /Final call/);
   assert.match(result.html, /rating score-text good" aria-label="Ride score 5 out of 5, Favourable"/);
@@ -185,6 +209,7 @@ test("a safe two-hour highlight can occur within a poor full-window forecast", (
     hourly[field] = time.map(() => ({ temperature_2m: 14, precipitation_probability: 10, precipitation: 0,
       wind_speed_10m: 10, wind_gusts_10m: 55, wind_direction_10m: 0, weather_code: 1 })[field]);
   }
+  hourly.temperature_2m.fill(18);
   for (const hour of [6, 7, 8, 9]) hourly.wind_gusts_10m[time.indexOf("2026-09-25T0" + hour + ":00")] = 20;
   const result = renderForecast(hourly, { date: "2026-09-24", hour: 22 });
   assert.match(result.html, /class="slot avoid"/);
