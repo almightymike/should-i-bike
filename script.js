@@ -68,6 +68,26 @@ function forecastUrl(location) {
   return url.toString();
 }
 
+function mapUrl(location) {
+  const lat = Math.max(-85, Math.min(85, location.latitude));
+  const lon = location.longitude;
+  const lonSpan = 0.04 / Math.max(Math.cos(lat * Math.PI / 180), 0.35);
+  const url = new URL("https://www.openstreetmap.org/export/embed.html");
+  url.searchParams.set("bbox", [Math.max(-180, lon - lonSpan), lat - 0.025,
+    Math.min(180, lon + lonSpan), lat + 0.025].map((value) => value.toFixed(5)).join(","));
+  url.searchParams.set("layer", "mapnik");
+  url.searchParams.set("marker", lat.toFixed(5) + "," + lon.toFixed(5));
+  return url.toString();
+}
+
+function mapViewUrl(location) {
+  const url = new URL("https://www.openstreetmap.org/");
+  url.searchParams.set("mlat", location.latitude);
+  url.searchParams.set("mlon", location.longitude);
+  url.hash = "map=13/" + location.latitude + "/" + location.longitude;
+  return url.toString();
+}
+
 function geocodingUrl(query) {
   const url = new URL(GEOCODING_API);
   url.searchParams.set("name", query);
@@ -362,6 +382,11 @@ function updateLocationHeader() {
     (selectedLocation.approximate ? " (approximate)" : "");
   document.querySelector("#page-title").textContent = selectedLocation.name + " Cycling Dashboard";
   document.title = "Should I Bike? | " + selectedLocation.name + " Cycling Dashboard";
+  const map = document.querySelector("#location-map");
+  document.querySelector("#map-placeholder").hidden = false;
+  map.title = "Map of " + locationLabel(selectedLocation);
+  map.src = mapUrl(selectedLocation);
+  document.querySelector("#map-link").href = mapViewUrl(selectedLocation);
 }
 
 function closeSuggestions() {
@@ -564,6 +589,11 @@ function refreshWhenHourChanges() {
 }
 
 if (typeof document !== "undefined") {
+  document.querySelector("#location-map").addEventListener("load", () => {
+    if (document.querySelector("#location-map").getAttribute("src")) {
+      document.querySelector("#map-placeholder").hidden = true;
+    }
+  });
   if (rememberedLocation) updateLocationHeader();
   setupLocationSearch();
   document.querySelector("#refresh").addEventListener("click", loadForecast);
@@ -586,5 +616,6 @@ if (typeof document !== "undefined") {
 if (typeof module !== "undefined") {
   module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice, clothingAdvice,
     summariseWindow, renderForecast,
-    locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches };
+    locationLabel, validLocation, approximateLocation, forecastUrl, mapUrl, mapViewUrl,
+    geocodingUrl, locationMatches };
 }
