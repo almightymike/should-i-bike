@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
-const { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice, summariseWindow, renderForecast,
+const { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice, clothingAdvice, summariseWindow, renderForecast,
   locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches } = require("../script.js");
 
 const morning = { name: "Morning", hours: [6, 7, 8, 9, 10] };
@@ -112,6 +112,19 @@ test("temperature adjusts comfort scores without hiding cold but rideable weathe
     "Very cold. Check for ice and dress for the conditions. Hot ride. Consider an earlier time and take heat precautions.");
 });
 
+test("ride clothing tips combine temperature, wind and rain without implying Avoid is rideable", () => {
+  const base = { minTemp: 8, maxTemp: 11, wind: 10, gust: 20, rain: 0, rainChance: 10 };
+  assert.equal(clothingAdvice(base), "Wear warm layers and full-finger gloves.");
+  assert.equal(clothingAdvice({ ...base, wind: 22 }),
+    "Wear warm layers and full-finger gloves. Bring a windproof gilet.");
+  assert.equal(clothingAdvice({ ...base, wind: 22, rainChance: 35 }),
+    "Wear warm layers and full-finger gloves. Pack a light rain jacket.");
+  assert.equal(clothingAdvice({ ...base, wind: 22, rain: 0.5 }),
+    "Wear warm layers and full-finger gloves. Bring a waterproof jacket.");
+  assert.equal(clothingAdvice({ ...base, minTemp: 24, maxTemp: 25, wind: 22 }),
+    "Wear breathable cycling kit. Secure loose clothing in the wind.");
+});
+
 test("a missing hourly value never produces a favourable rating", () => {
   const hourly = fixture();
   hourly.wind_gusts_10m[2] = null;
@@ -176,7 +189,8 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.highlights, /Wind 10 km\/h North/);
   assert.match(result.highlights, /Rain total 0.0 mm/);
   assert.match(result.highlights, /Temp 18°C/);
-  assert.match(result.highlights, /Comfortable riding temperature/);
+  assert.match(result.highlights, /What to wear:<\/strong> Your usual cycling kit is fine/);
+  assert.doesNotMatch(result.highlights.split('Weakest option')[1], /What to wear:/);
   assert.match(result.highlights, /Weakest stretch:/);
   assert.match(result.final, /Final call/);
   assert.match(result.html, /rating score-text good" aria-label="Ride score 5 out of 5, Favourable"/);
