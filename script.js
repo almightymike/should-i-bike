@@ -158,6 +158,17 @@ function temperatureAdvice(stats) {
   return notes.join(" ") || "Comfortable riding temperature.";
 }
 
+function clothingAdvice(stats) {
+  const windy = stats.wind >= 20 || stats.gust >= 35;
+  let advice = stats.minTemp < 10 ? "Wear warm layers and full-finger gloves." :
+    stats.minTemp < 15 ? "Wear a light layer." :
+    stats.maxTemp >= 23 ? "Wear breathable cycling kit." : "Your usual cycling kit is fine.";
+  if (stats.rain >= 0.4) advice += " Bring a waterproof jacket.";
+  else if (stats.rain > 0 || stats.rainChance >= 30) advice += " Pack a light rain jacket.";
+  else if (windy) advice += stats.maxTemp >= 23 ? " Secure loose clothing in the wind." : " Bring a windproof gilet.";
+  return advice;
+}
+
 function routeFor(rating, direction, location) {
   if (rating === "avoid") return isMiramar(location) ? "Skip exposed coastal roads; check again later." :
     "No ride recommended. Check conditions again later.";
@@ -276,7 +287,9 @@ function highlightHtml(label, entry, location, emphasis = false, emptyText = "No
     '<div class="chips"><span class="chip">Temp ' + temperatureRange(stats) + '</span><span class="chip">Wind ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</span>' +
     '<span class="chip">Gusts ' + Math.round(stats.gust) + ' km/h</span><span class="chip">Rain chance ' + Math.round(stats.rainChance) + '%</span>' +
     '<span class="chip">Rain total ' + stats.rain.toFixed(1) + ' mm</span></div>' +
-    '<p class="note">' + temperatureAdvice(stats) + '</p>' +
+    (weakest || entry.result.rating === "avoid" ? '' :
+      '<p class="note"><strong>What to wear:</strong> ' + clothingAdvice(stats) + '</p>') +
+    (stats.maxTemp >= 23 ? '<p class="note">' + temperatureAdvice(stats) + '</p>' : '') +
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location) + '</p></article>';
 }
 
@@ -571,7 +584,7 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice,
+  module.exports = { localClock, datesToShow, compass, ratingFor, scoreFor, temperatureRange, temperatureAdvice, clothingAdvice,
     summariseWindow, renderForecast,
     locationLabel, validLocation, approximateLocation, forecastUrl, geocodingUrl, locationMatches };
 }
