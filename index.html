@@ -23,15 +23,24 @@
         </div>
       </header>
 
-      <section class="location-picker" aria-label="Choose ride location">
-        <label for="location-query">Choose a ride location</label>
-        <div class="search-wrap">
-          <input id="location-query" type="search" placeholder="Start typing a city or suburb" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="location-options" aria-expanded="false" aria-describedby="location-hint">
-          <ul id="location-options" role="listbox" hidden></ul>
-        </div>
-        <p class="location-hint" id="location-hint">First visit uses an approximate network location. Type at least 3 letters to choose another place. Your choice is remembered on this device.</p>
-        <button class="location-reset" id="use-approx" type="button">Use approximate location</button>
-      </section>
+      <div class="location-row">
+        <section class="location-picker" aria-label="Choose ride location">
+          <label for="location-query">Choose a ride location</label>
+          <div class="search-wrap">
+            <input id="location-query" type="search" placeholder="Start typing a city or suburb" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="location-options" aria-expanded="false" aria-describedby="location-hint">
+            <ul id="location-options" role="listbox" hidden></ul>
+          </div>
+          <p class="location-hint" id="location-hint">First visit uses an approximate network location. Type at least 3 letters to choose another place. Your choice is remembered on this device.</p>
+          <button class="location-reset" id="use-approx" type="button">Use approximate location</button>
+        </section>
+        <aside class="location-map" aria-label="Selected location map">
+          <div class="map-thumbnail">
+            <iframe id="location-map" title="Map of selected location" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" tabindex="-1"></iframe>
+            <span id="map-placeholder" class="map-placeholder">Loading map…</span>
+          </div>
+          <p class="map-caption"><a id="map-link" href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer">Open full map</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></p>
+        </aside>
+      </div>
 
       <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
       <section class="dashboard-section highlights-section" aria-labelledby="highlights-heading">
