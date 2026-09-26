@@ -7,10 +7,12 @@ const GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
 const RIDE_HOURS = 2;
 const RIDE_MIN_TEMP_C = 5;
 const WINDOWS = [
-  { name: "Morning", hours: [5, 6, 7, 8, 9, 10, 11], label: "05:00–11:59" },
-  { name: "Afternoon", hours: [12, 13, 14, 15, 16, 17], label: "12:00–17:59" },
-  { name: "Night", hours: [18, 19, 20, 21, 22, 23], label: "18:00–23:59" }
+  { name: "Early morning", hours: [5, 6, 7, 8], label: "05:00–08:59" },
+  { name: "Late morning", hours: [9, 10, 11, 12], label: "09:00–12:59" },
+  { name: "Afternoon", hours: [13, 14, 15, 16], label: "13:00–16:59" },
+  { name: "Evening", hours: [17, 18, 19, 20], label: "17:00–20:59" }
 ];
+const LATE_NIGHT_WINDOW = { name: "Late night", hours: [21, 22, 23], label: "21:00–23:59" };
 const FIELDS = ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"];
 
 function localClock(now = new Date(), timezone = DEFAULT_LOCATION.timezone) {
@@ -88,12 +90,12 @@ function locationMatches(query, results) {
     .slice(0, 8);
 }
 
-function datesToShow(hourly, clock) {
+function datesToShow(hourly, clock, includeLateNight = false) {
   const dates = [...new Set(hourly.time.map((stamp) => stamp.slice(0, 10)))];
   const start = dates.indexOf(clock.date);
   if (start < 0) throw new Error("Forecast dates do not include today in Wellington.");
-  // After 22:00 no two full forecast hours remain before midnight.
-  const offset = clock.hour >= 22 ? 1 : 0;
+  // The current forecast hour has begun, so only later hours can start a two-hour ride.
+  const offset = clock.hour >= (includeLateNight ? 22 : 19) ? 1 : 0;
   const selected = dates.slice(start + offset, start + offset + 3);
   if (selected.length < 3) throw new Error("The forecast has fewer than three upcoming days.");
   return selected;
@@ -293,19 +295,20 @@ function highlightHtml(label, entry, location, emphasis = false, emptyText = "No
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location) + '</p></article>';
 }
 
-function renderForecast(hourly, clock, location = DEFAULT_LOCATION) {
-  const dates = datesToShow(hourly, clock);
+function renderForecast(hourly, clock, location = DEFAULT_LOCATION, includeLateNight = false) {
+  const dates = datesToShow(hourly, clock, includeLateNight);
+  const windows = includeLateNight ? [...WINDOWS, LATE_NIGHT_WINDOW] : WINDOWS;
   let incomplete = false;
   const entries = [];
   const cards = dates.map((date) => {
-    const slots = WINDOWS.map((window) => {
+    const slots = windows.map((window) => {
       const result = summariseWindow(hourly, date, window, clock);
       if (result.state === "incomplete") incomplete = true;
       if (result.state === "ready") entries.push({ date, window, result });
       return windowHtml(result, window, location);
     }).join("");
     return '<article class="card day-card"><div class="day-title"><div><h2>' + dateLabel(date) + '</h2>' +
-      '<p class="meta">' + (date === clock.date ? "Today" : "Morning, afternoon and night outlook") + '</p></div>' +
+      '<p class="meta">' + (date === clock.date ? "Today" : "Ride outlook from 05:00" + (includeLateNight ? " to 23:59" : " to 20:59")) + '</p></div>' +
       '<span class="badge">' + (date === clock.date ? "Today" : "Upcoming") + '</span></div>' + slots + '</article>';
   });
   const rideOptions = entries.filter((entry) => entry.result.bestPair).map((entry) =>
@@ -333,7 +336,7 @@ function renderForecast(hourly, clock, location = DEFAULT_LOCATION) {
       '/inco: No complete upcoming window can be rated.') + '</p></article>' +
     '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast from Open-Meteo for the selected location. ' +
     'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Forecast cards rate the entire time window. Ride highlights score and show conditions for a two-hour stretch only. ' +
-    'Temperature affects scores: 15–22°C is preferred, 5–9°C can still be recommended with caution, and rides below 5°C are not selected as best or backup. These are comfort rules, not universal safety limits. Night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
+    'Temperature affects scores: 15–22°C is preferred, 5–9°C can still be recommended with caution, and rides below 5°C are not selected as best or backup. These are comfort rules, not universal safety limits. Early morning and evening rides may need lights; late-night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
   return { html: cards.join(""), highlights, final, incomplete };
 }
 
@@ -531,7 +534,7 @@ async function loadForecast() {
       throw new Error("The weather service returned an unexpected forecast.");
     }
     const clock = localClock(new Date(), payload.timezone);
-    const result = renderForecast(payload.hourly, clock, location);
+    const result = renderForecast(payload.hourly, clock, location, document.querySelector("#include-late-night").checked);
     grid.innerHTML = result.html;
     highlights.innerHTML = result.highlights;
     final.innerHTML = result.final;
@@ -564,9 +567,11 @@ function refreshWhenHourChanges() {
 }
 
 if (typeof document !== "undefined") {
+  document.querySelector("#include-late-night").checked = false;
   if (rememberedLocation) updateLocationHeader();
   setupLocationSearch();
   document.querySelector("#refresh").addEventListener("click", loadForecast);
+  document.querySelector("#include-late-night").addEventListener("change", loadForecast);
   // Remove expired ride-out times without requiring a manual page reload.
   setInterval(refreshWhenHourChanges, 30000);
   document.addEventListener("visibilitychange", refreshWhenHourChanges);

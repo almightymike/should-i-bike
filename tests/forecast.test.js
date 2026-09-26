@@ -70,10 +70,12 @@ test("Cloudflare location response is private and falls back when metadata is mi
     latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
 });
 
-test("after the last two-hour night start, show tomorrow and the following two days", () => {
+test("late-night choice controls when the outlook moves to tomorrow", () => {
   const hourly = { time: ["2026-09-24T00:00", "2026-09-25T00:00", "2026-09-26T00:00", "2026-09-27T00:00"] };
-  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 21 }), ["2026-09-24", "2026-09-25", "2026-09-26"]);
-  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 22 }), ["2026-09-25", "2026-09-26", "2026-09-27"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 18 }), ["2026-09-24", "2026-09-25", "2026-09-26"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 19 }), ["2026-09-25", "2026-09-26", "2026-09-27"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 21 }, true), ["2026-09-24", "2026-09-25", "2026-09-26"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 22 }, true), ["2026-09-25", "2026-09-26", "2026-09-27"]);
 });
 
 test("rating limits include gusts and rain even when mean wind is light", () => {
@@ -182,8 +184,11 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.highlights, /Best backup/);
   assert.match(result.highlights, /Weakest option/);
   assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
-  assert.equal((result.html.match(/class="slot good"/g) || []).length, 7);
-  assert.match(result.html, /Night/);
+  assert.equal((result.html.match(/class="slot good"/g) || []).length, 12);
+  assert.match(result.html, /Early morning/);
+  assert.match(result.html, /Late morning/);
+  assert.match(result.html, /Evening/);
+  assert.doesNotMatch(result.html, /Late night/);
   assert.doesNotMatch(result.html, /Ride out:/);
   assert.match(result.highlights, /Ride out: 05:00/);
   assert.match(result.highlights, /Wind 10 km\/h North/);
@@ -213,6 +218,31 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(unsafe.final, /No complete upcoming window has a suitable 2-hour start/);
   assert.match(unsafe.html, /rating score-text avoid" aria-label="Ride score 1 out of 5, Avoid exposed routes"/);
   assert.doesNotMatch(unsafe.highlights.split('Best backup')[0], /score-badge/);
+});
+
+test("late night is excluded by default and only affects scores and highlights when enabled", () => {
+  const time = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27"].flatMap((date) =>
+    Array.from({ length: 24 }, (_, hour) => date + "T" + String(hour).padStart(2, "0") + ":00"));
+  const hourly = { time };
+  for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
+    hourly[field] = time.map(() => ({ temperature_2m: 18, precipitation_probability: 10, precipitation: 0,
+      wind_speed_10m: 10, wind_gusts_10m: 55, wind_direction_10m: 0, weather_code: 1 })[field]);
+  }
+  for (const date of ["2026-09-24", "2026-09-25", "2026-09-26"]) {
+    for (const hour of [22, 23]) hourly.wind_gusts_10m[time.indexOf(date + "T" + hour + ":00")] = 20;
+  }
+  const clock = { date: "2026-09-24", hour: 21 };
+  const defaultView = renderForecast(hourly, clock);
+  assert.doesNotMatch(defaultView.html, /Late night/);
+  assert.match(defaultView.highlights, /No ride recommended/);
+  assert.equal((defaultView.html.match(/class="card day-card"/g) || []).length, 3);
+  const optedIn = renderForecast(hourly, clock, undefined, true);
+  assert.equal((optedIn.html.match(/Late night<\/span>/g) || []).length, 3);
+  assert.match(optedIn.highlights, /Best overall[\s\S]*Ride out: 22:00–23:59/);
+  assert.match(optedIn.highlights, /score-badge good/);
+  assert.match(optedIn.final, /Late night/);
+  const resetView = renderForecast(hourly, clock);
+  assert.deepEqual(resetView, defaultView);
 });
 
 test("a safe two-hour highlight can occur within a poor full-window forecast", () => {

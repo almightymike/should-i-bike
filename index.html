@@ -18,7 +18,7 @@
         <div>
           <p class="eyebrow">Should I Bike? · <span id="current-location">Finding nearby location…</span></p>
           <h1 id="page-title">Cycling Dashboard</h1>
-          <p class="sub">A three-day ride check. Morning: 05:00–11:59. Afternoon: 12:00–17:59. Night: 18:00–23:59. Temperature affects comfort and ride ranking. Times are local to the selected place.</p>
+          <p class="sub">A three-day ride check from 05:00–20:59. Optional late night: 21:00–23:59. Temperature affects comfort and ride ranking. Times are local to the selected place.</p>
         </div>
         <div class="toolbar">
           <span class="pill" id="updated">Checking forecast…</span>
@@ -36,6 +36,13 @@
         <button class="location-reset" id="use-approx" type="button">Use approximate location</button>
       </section>
 
+      <div class="ride-options">
+        <label class="night-option" for="include-late-night">
+          <input id="include-late-night" type="checkbox">
+          <span class="night-option-copy"><strong>Include late-night rides</strong><small>21:00–23:59 · Updates highlights and forecast</small></span>
+        </label>
+      </div>
+
       <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
       <section class="dashboard-section highlights-section" aria-labelledby="highlights-heading">
         <div class="section-heading">
@@ -51,7 +58,7 @@
         <div class="section-heading">
           <div>
             <h2 id="forecast-heading">Three-day forecast</h2>
-            <p>Morning, afternoon and night conditions. Each score covers the full time window.</p>
+            <p>Four-hour ride windows from 05:00–20:59. Each score covers the full time window.</p>
           </div>
           <span class="scope-tag">Full time windows</span>
         </div>

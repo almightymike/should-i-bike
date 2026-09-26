@@ -38,6 +38,7 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .location-hint { margin: 7px 0 0; color: #cbd5e1; font-size: .82rem; }
 .location-reset { margin-top: 7px; padding: 0; color: #a8cdfd; background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: .84rem; }
 .location-reset:hover, .location-reset:focus-visible { color: #dbeafe; }
+.ride-options { margin: -4px 0 14px; }
 .status { color: #cbd5e1; min-height: 24px; margin: 12px 0 18px; font-size: .9rem; }
 .status.warning { border-left: 4px solid #f59e0b; border-radius: 12px; background: rgba(245,158,11,.11); color: #fde68a; padding: 12px 14px; }
 .dashboard-section { padding: 20px; border: 1px solid rgba(255,255,255,.16); border-radius: 26px; margin-bottom: 28px; }
@@ -46,6 +47,12 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .section-heading h2 { margin: 0; font-size: 1.45rem; letter-spacing: -.03em; }
 .section-heading p { color: #cbd5e1; margin: 4px 0 0; font-size: .92rem; }
+.night-option { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; padding: 10px 14px; border: 1px solid #477D83; border-radius: 12px; background: #17383D; color: #f8fafc; cursor: pointer; }
+.night-option:hover { background: #1E464B; }
+.night-option-copy { display: flex; flex-direction: column; gap: 2px; font-size: .92rem; line-height: 1.3; }
+.night-option-copy small { color: #cbd5e1; font-size: .8rem; }
+.night-option input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: #60a5fa; cursor: pointer; }
+.night-option input:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
 .scope-tag { flex: none; padding: 7px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #dbeafe; font-size: .8rem; white-space: nowrap; }
 .highlights-section .scope-tag { border-color: rgba(96,165,250,.55); }
 .grid { display: grid; gap: 16px; }
