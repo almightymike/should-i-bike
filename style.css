@@ -47,8 +47,8 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .section-heading h2 { margin: 0; font-size: 1.45rem; letter-spacing: -.03em; }
 .section-heading p { color: #cbd5e1; margin: 4px 0 0; font-size: .92rem; }
-.night-option { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; padding: 10px 14px; border: 1px solid #716C91; border-radius: 12px; background: #302D46; color: #f8fafc; cursor: pointer; }
-.night-option:hover { background: #393552; }
+.night-option { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; padding: 10px 14px; border: 1px solid #477D83; border-radius: 12px; background: #17383D; color: #f8fafc; cursor: pointer; }
+.night-option:hover { background: #1E464B; }
 .night-option-copy { display: flex; flex-direction: column; gap: 2px; font-size: .92rem; line-height: 1.3; }
 .night-option-copy small { color: #cbd5e1; font-size: .8rem; }
 .night-option input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: #60a5fa; cursor: pointer; }
