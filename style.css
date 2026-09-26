@@ -47,8 +47,11 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .section-heading h2 { margin: 0; font-size: 1.45rem; letter-spacing: -.03em; }
 .section-heading p { color: #cbd5e1; margin: 4px 0 0; font-size: .92rem; }
-.night-option { display: inline-flex; align-items: center; gap: 9px; color: #dbeafe; font-size: .92rem; cursor: pointer; }
-.night-option input { width: 18px; height: 18px; margin: 0; accent-color: #60a5fa; cursor: pointer; }
+.night-option { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; padding: 10px 14px; border: 1px solid rgba(96,165,250,.35); border-radius: 12px; background: rgba(96,165,250,.08); color: #f8fafc; cursor: pointer; }
+.night-option:hover { background: rgba(96,165,250,.13); }
+.night-option-copy { display: flex; flex-direction: column; gap: 2px; font-size: .92rem; line-height: 1.3; }
+.night-option-copy small { color: #cbd5e1; font-size: .8rem; }
+.night-option input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: #60a5fa; cursor: pointer; }
 .night-option input:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
 .scope-tag { flex: none; padding: 7px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #dbeafe; font-size: .8rem; white-space: nowrap; }
 .highlights-section .scope-tag { border-color: rgba(96,165,250,.55); }
