@@ -36,6 +36,10 @@
         <button class="location-reset" id="use-approx" type="button">Use approximate location</button>
       </section>
 
+      <div class="ride-options">
+        <label class="night-option" for="include-late-night"><input id="include-late-night" type="checkbox"> Include late night (21:00–23:59) in highlights and forecast</label>
+      </div>
+
       <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
       <section class="dashboard-section highlights-section" aria-labelledby="highlights-heading">
         <div class="section-heading">
@@ -52,7 +56,6 @@
           <div>
             <h2 id="forecast-heading">Three-day forecast</h2>
             <p>Four-hour ride windows from 05:00–20:59. Each score covers the full time window.</p>
-            <label class="night-option" for="include-late-night"><input id="include-late-night" type="checkbox"> Include late night (21:00–23:59)</label>
           </div>
           <span class="scope-tag">Full time windows</span>
         </div>
