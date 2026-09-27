@@ -80,7 +80,7 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .slot.past summary::-webkit-details-marker { display: none; }
 .slot.past summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; border-radius: 18px; }
 .slot.past .slot-title { font-size: .98rem; font-weight: 650; }
-.slot.past .slot-line { grid-column: 1; margin-top: 0; color: #7f8da1; font-size: .82rem; }
+.slot.past .slot-line { grid-column: 1; margin-top: 0; color: #7f8da1; font-size: .82rem; white-space: nowrap; }
 .past-heading { display: contents; }
 .past-label { color: #cbd5e1; font-size: .82rem; font-weight: 700; }
 .past-reason { grid-column: 1 / -1; margin-top: 5px; color: #a9b5c7; font-size: .84rem; }
