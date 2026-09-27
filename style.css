@@ -75,6 +75,10 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .slot.caution { background: rgba(245,158,11,.20); border-color: rgba(245,158,11,.58); }
 .slot.avoid { background: rgba(239,68,68,.20); border-color: rgba(239,68,68,.58); }
 .slot.unavailable { background: rgba(255,255,255,.045); }
+.slot.past { padding: 10px 15px; background: rgba(148,163,184,.055); border-color: rgba(148,163,184,.16); color: #94a3b8; }
+.slot.past .slot-title { font-size: .98rem; font-weight: 650; }
+.slot.past .slot-line { margin-top: 3px; color: #7f8da1; font-size: .82rem; }
+.past-label { color: #94a3b8; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .slot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .slot-title { font-size: 1.1rem; font-weight: 750; }
 .rating { font-size: 1rem; font-weight: 800; text-align: right; }
