@@ -70,6 +70,13 @@ test("Cloudflare location response is private and falls back when metadata is mi
     latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
 });
 
+test("the page uses the minimal bicycle favicon", () => {
+  const html = readFileSync(join(__dirname, "../index.html"), "utf8");
+  const favicon = readFileSync(join(__dirname, "../favicon.svg"), "utf8");
+  assert.match(html, /<link rel="icon" href="favicon\.svg" type="image\/svg\+xml">/);
+  assert.match(favicon, /Should I Bike bicycle icon/);
+});
+
 test("late-night choice controls when the outlook moves to tomorrow", () => {
   const hourly = { time: ["2026-09-24T00:00", "2026-09-25T00:00", "2026-09-26T00:00", "2026-09-27T00:00"] };
   assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 18 }), ["2026-09-24", "2026-09-25", "2026-09-26"]);
