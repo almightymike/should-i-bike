@@ -144,6 +144,20 @@ test("today's window uses only future full forecast hours", () => {
   assert.equal(result.rideOutHour, null);
 });
 
+test("passed forecast windows render as compact muted summaries", () => {
+  const time = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27"].flatMap((date) =>
+    Array.from({ length: 24 }, (_, hour) => date + "T" + String(hour).padStart(2, "0") + ":00"));
+  const hourly = { time };
+  for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
+    hourly[field] = time.map(() => ({ temperature_2m: 18, precipitation_probability: 10, precipitation: 0,
+      wind_speed_10m: 10, wind_gusts_10m: 20, wind_direction_10m: 0, weather_code: 1 })[field]);
+  }
+  const result = renderForecast(hourly, { date: "2026-09-24", hour: 12 });
+  assert.match(result.html, /class="slot past"/);
+  assert.match(result.html, /class="rating past-label">Past/);
+  assert.doesNotMatch(result.html, /This ride window has passed/);
+});
+
 test("ride-out time picks the best consecutive two-hour stretch within the window", () => {
   const hourly = fixture();
   hourly.wind_gusts_10m = [45, 46, 20, 19, 21];
