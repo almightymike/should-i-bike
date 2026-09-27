@@ -75,10 +75,17 @@ h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.05em; line-height: 1
 .slot.caution { background: rgba(245,158,11,.20); border-color: rgba(245,158,11,.58); }
 .slot.avoid { background: rgba(239,68,68,.20); border-color: rgba(239,68,68,.58); }
 .slot.unavailable { background: rgba(255,255,255,.045); }
-.slot.past { padding: 10px 15px; background: rgba(148,163,184,.055); border-color: rgba(148,163,184,.16); color: #94a3b8; }
+.slot.past { padding: 0; background: rgba(148,163,184,.055); border-color: rgba(148,163,184,.16); color: #94a3b8; }
+.slot.past summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 15px; list-style: none; cursor: pointer; }
+.slot.past summary::-webkit-details-marker { display: none; }
+.slot.past summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; border-radius: 18px; }
 .slot.past .slot-title { font-size: .98rem; font-weight: 650; }
 .slot.past .slot-line { margin-top: 3px; color: #7f8da1; font-size: .82rem; }
-.past-label { color: #94a3b8; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.past-summary { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.past-label { color: #cbd5e1; font-size: .82rem; font-weight: 700; }
+.past-reason { max-width: 230px; margin-top: 2px; color: #94a3b8; font-size: .78rem; }
+.past-details { padding: 0 15px 13px; border-top: 1px solid rgba(148,163,184,.13); }
+.rating-reason { margin: 5px 0 0; color: #e2e8f0; font-size: .9rem; }
 .slot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .slot-title { font-size: 1.1rem; font-weight: 750; }
 .rating { font-size: 1rem; font-weight: 800; text-align: right; }
