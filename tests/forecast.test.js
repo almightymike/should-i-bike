@@ -156,6 +156,8 @@ test("passed forecast windows render as compact muted summaries", () => {
   assert.match(result.html, /<details class="slot past">/);
   assert.match(result.html, /class="past-label">Past · 5\/5/);
   assert.match(result.html, /Wind and rain stay below the caution limits/);
+  assert.match(result.html, /View details/);
+  assert.match(result.html, /Hide details/);
   assert.match(result.html, /This was the forecast rating, not observed weather/);
   assert.doesNotMatch(result.html, /This ride window has passed/);
 });
