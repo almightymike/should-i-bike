@@ -253,10 +253,14 @@ function scoreBadge(result) {
 }
 
 function windowHtml(result, window, location) {
+  if (result.state === "passed") {
+    return '<section class="slot past"><div class="slot-head"><span class="slot-title">' + window.name +
+      '</span><span class="rating past-label">Past</span></div><div class="slot-line">' + window.label + '</div></section>';
+  }
   if (result.state !== "ready") {
-    const message = result.state === "passed" ? "This ride window has passed." : "/inco: Hourly forecast data is missing. No rating shown.";
+    const message = "/inco: Hourly forecast data is missing. No rating shown.";
     return '<section class="slot unavailable"><div class="slot-head"><span class="slot-title">' + window.name + '</span><span class="rating">' +
-      (result.state === "passed" ? "Past" : "Unavailable") + '</span></div><div class="slot-line">' + window.label + '</div><p class="note">' + message + '</p></section>';
+      'Unavailable</span></div><div class="slot-line">' + window.label + '</div><p class="note">' + message + '</p></section>';
   }
   const stats = result.stats;
   const titles = { good: "Favourable", caution: "Use caution", avoid: "Avoid exposed routes" };
