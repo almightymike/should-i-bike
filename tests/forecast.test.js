@@ -153,8 +153,10 @@ test("passed forecast windows render as compact muted summaries", () => {
       wind_speed_10m: 10, wind_gusts_10m: 20, wind_direction_10m: 0, weather_code: 1 })[field]);
   }
   const result = renderForecast(hourly, { date: "2026-09-24", hour: 12 });
-  assert.match(result.html, /class="slot past"/);
-  assert.match(result.html, /class="rating past-label">Past/);
+  assert.match(result.html, /<details class="slot past">/);
+  assert.match(result.html, /class="past-label">Past · 5\/5/);
+  assert.match(result.html, /Wind and rain stay below the caution limits/);
+  assert.match(result.html, /This was the forecast rating, not observed weather/);
   assert.doesNotMatch(result.html, /This ride window has passed/);
 });
 
@@ -213,6 +215,7 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.highlights, /Weakest stretch:/);
   assert.match(result.final, /Final call/);
   assert.match(result.html, /rating score-text good" aria-label="Ride score 5 out of 5, Favourable"/);
+  assert.match(result.html, /class="rating-reason">Wind and rain stay below the caution limits/);
   assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5, Favourable"/);
   const elsewhere = renderForecast(hourly, { date: "2026-09-24", hour: 20 },
     { name: "Paris", admin1: "Île-de-France", country: "France", country_code: "FR",
