@@ -206,10 +206,11 @@ function weatherBurden(stats) {
 
 function summariseWindow(hourly, date, window, clock) {
   const futureHours = window.hours.filter((hour) => date !== clock.date || hour > clock.hour);
-  if (futureHours.length === 0) return { state: "passed" };
+  const passed = futureHours.length === 0;
+  const selectedHours = passed ? window.hours : futureHours;
 
   const rows = [];
-  for (const hour of futureHours) {
+  for (const hour of selectedHours) {
     const stamp = date + "T" + String(hour).padStart(2, "0") + ":00";
     const index = hourly.time.indexOf(stamp);
     if (index < 0 || FIELDS.some((field) => !Array.isArray(hourly[field]) || !Number.isFinite(hourly[field][index]))) {
@@ -219,6 +220,7 @@ function summariseWindow(hourly, date, window, clock) {
   }
 
   const stats = statsForRows(rows);
+  if (passed) return { state: "passed", stats, rating: ratingFor(stats), score: scoreFor(stats), hours: selectedHours };
   const pairs = [];
   for (let i = 0; i + RIDE_HOURS <= rows.length; i++) {
     if (futureHours[i + RIDE_HOURS - 1] !== futureHours[i] + RIDE_HOURS - 1) continue;
@@ -254,8 +256,16 @@ function scoreBadge(result) {
 
 function windowHtml(result, window, location) {
   if (result.state === "passed") {
-    return '<section class="slot past"><div class="slot-head"><span class="slot-title">' + window.name +
-      '</span><span class="rating past-label">Past</span></div><div class="slot-line">' + window.label + '</div></section>';
+    const stats = result.stats;
+    return '<details class="slot past"><summary><span><span class="slot-title">' + window.name +
+      '</span><span class="slot-line">' + window.label + '</span></span><span class="past-summary"><span class="past-label">Past · ' +
+      result.score + '/5</span><span class="past-reason">' + reasonFor(stats, result.rating) + '</span></span></summary>' +
+      '<div class="past-details"><div class="conditions"><div class="condition"><span>Temp:</span> ' + temperatureRange(stats) + '</div>' +
+      '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
+      '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
+      '<div class="condition"><span>Rain chance:</span> ' + Math.round(stats.rainChance) + '%</div>' +
+      '<div class="condition"><span>Rain total:</span> ' + stats.rain.toFixed(1) + ' mm</div></div>' +
+      '<p class="note">This was the forecast rating, not observed weather.</p></div></details>';
   }
   if (result.state !== "ready") {
     const message = "/inco: Hourly forecast data is missing. No rating shown.";
@@ -269,7 +279,7 @@ function windowHtml(result, window, location) {
   return '<section class="slot ' + result.rating + '"><div class="slot-head"><span class="slot-title">' + window.name +
     '</span><span class="rating score-text ' + result.rating + '" aria-label="Ride score ' + result.score + ' out of 5, ' +
     titles[result.rating] + '">' + result.score + '/5 · ' + titles[result.rating] +
-    '</span></div><div class="slot-line">' + time + ' · ' + reasonFor(stats, result.rating) + '</div>' +
+    '</span></div><div class="slot-line">' + time + '</div><p class="rating-reason">' + reasonFor(stats, result.rating) + '</p>' +
     '<div class="conditions"><div class="condition"><span>Temp:</span> ' + temperatureRange(stats) + '</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
