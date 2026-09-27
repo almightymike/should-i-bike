@@ -257,9 +257,11 @@ function scoreBadge(result) {
 function windowHtml(result, window, location) {
   if (result.state === "passed") {
     const stats = result.stats;
-    return '<details class="slot past"><summary><span><span class="slot-title">' + window.name +
-      '</span><span class="slot-line">' + window.label + '</span></span><span class="past-summary"><span class="past-label">Past · ' +
-      result.score + '/5</span><span class="past-reason">' + reasonFor(stats, result.rating) + '</span></span></summary>' +
+    return '<details class="slot past"><summary><span class="past-heading"><span class="slot-title">' + window.name +
+      '</span><span class="past-label">Past · ' + result.score + '/5</span></span>' +
+      '<span class="slot-line">' + window.label + '</span><span class="past-reason">' + reasonFor(stats, result.rating) + '</span>' +
+      '<span class="past-action"><span class="expand-label">View details</span><span class="collapse-label">Hide details</span>' +
+      '<span class="past-chevron" aria-hidden="true">⌄</span></span></summary>' +
       '<div class="past-details"><div class="conditions"><div class="condition"><span>Temp:</span> ' + temperatureRange(stats) + '</div>' +
       '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
       '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
