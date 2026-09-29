@@ -37,12 +37,17 @@
         <button class="location-reset" id="use-approx" type="button">Use approximate location</button>
       </section>
 
-      <div class="ride-options">
-        <label class="night-option" for="include-late-night">
-          <input id="include-late-night" type="checkbox">
-          <span class="night-option-copy"><strong>Include late-night rides</strong><small>21:00–23:59 · Updates highlights and forecast</small></span>
+      <section class="ride-options" aria-label="Ride preferences">
+        <h2>Ride preferences</h2>
+        <label class="ride-option" for="avoid-rain">
+          <span class="ride-option-copy"><strong>Avoid rain</strong><small id="rain-preference-hint">On: recommend rides below 20% hourly chance and 0.1 mm predicted rain</small></span>
+          <input id="avoid-rain" class="option-switch" type="checkbox" role="switch" aria-describedby="rain-preference-hint" checked>
         </label>
-      </div>
+        <label class="ride-option" for="include-late-night">
+          <span class="ride-option-copy"><strong>Include late-night rides</strong><small>21:00–23:59 · Check lights and visibility</small></span>
+          <input id="include-late-night" class="option-switch" type="checkbox" role="switch">
+        </label>
+      </section>
 
       <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
       <section class="dashboard-section highlights-section" aria-labelledby="highlights-heading">
