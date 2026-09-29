@@ -116,7 +116,7 @@ function prevailingDirection(rows) {
 }
 
 function ratingFor(stats) {
-  if (stats.thunder || stats.wind >= 30 || stats.gust >= 50 || stats.rainChance >= 60 || stats.rain >= 1.5) return "avoid";
+  if (stats.thunder || stats.wind >= 30 || stats.gust >= 60 || stats.rainChance >= 60 || stats.rain >= 1.5) return "avoid";
   if (stats.wind >= 20 || stats.gust >= 35 || stats.rainChance >= 30 || stats.rain >= 0.4 ||
       stats.minTemp < 10 || stats.maxTemp >= 27) return "caution";
   return "good";
@@ -135,7 +135,7 @@ function scoreFor(stats) {
 
 function reasonFor(stats, rating) {
   if (stats.thunder) return "Thunder is forecast in this window.";
-  if (stats.gust >= (rating === "avoid" ? 50 : 35)) return "Gusts could reach " + Math.round(stats.gust) + " km/h.";
+  if (stats.gust >= (rating === "avoid" ? 60 : 35)) return "Gusts could reach " + Math.round(stats.gust) + " km/h.";
   if (stats.wind >= (rating === "avoid" ? 30 : 20)) return "Wind could reach " + Math.round(stats.wind) + " km/h.";
   if (stats.rain >= (rating === "avoid" ? 1.5 : 0.4)) return "Rain could total " + stats.rain.toFixed(1) + " mm.";
   if (stats.rainChance >= (rating === "avoid" ? 60 : 30)) return "Rain chance could reach " + Math.round(stats.rainChance) + "%.";
@@ -171,9 +171,19 @@ function clothingAdvice(stats) {
   return advice;
 }
 
-function routeFor(rating, direction, location) {
+function conditionalGust(stats, rating) {
+  return rating === "caution" && stats.gust >= 50;
+}
+
+function gustRouteWarning(stats, rating) {
+  return conditionalGust(stats, rating) ?
+    '<p class="gust-route-warning"><strong>Avoid exposed routes:</strong> Open coast, ridges and bridges. Only consider a sheltered route if conditions allow.</p>' : '';
+}
+
+function routeFor(rating, direction, location, stats) {
   if (rating === "avoid") return isMiramar(location) ? "Skip exposed coastal roads; check again later." :
     "No ride recommended. Check conditions again later.";
+  if (conditionalGust(stats, rating)) return "Only consider a short sheltered local loop. Check actual wind from " + direction + " before leaving.";
   if (isMiramar(location)) {
     if (rating === "caution") return "Shorter sheltered Miramar / Seatoun loop. Check wind from " + direction + ".";
     return "Evans Bay / Oriental Bay loop is an option. Check open sections for wind from " + direction + ".";
@@ -282,6 +292,7 @@ function windowHtml(result, window, location) {
     '</span><span class="rating score-text ' + result.rating + '" aria-label="Ride score ' + result.score + ' out of 5, ' +
     titles[result.rating] + '">' + result.score + '/5 · ' + titles[result.rating] +
     '</span></div><div class="slot-line">' + time + '</div><p class="rating-reason">' + reasonFor(stats, result.rating) + '</p>' +
+    gustRouteWarning(stats, result.rating) +
     '<div class="conditions"><div class="condition"><span>Temp:</span> ' + temperatureRange(stats) + '</div>' +
     '<div class="condition"><span>Wind:</span> ' + Math.round(stats.wind) + ' km/h ' + stats.direction + '</div>' +
     '<div class="condition"><span>Gusts:</span> ' + Math.round(stats.gust) + ' km/h</div>' +
@@ -290,7 +301,7 @@ function windowHtml(result, window, location) {
     '<div class="condition"><span>Exposure:</span> ' + (result.rating === "good" ? "check open sections" :
       isMiramar(location) ? "avoid open coast" : "limit exposed sections") + '</div></div>' +
     '<p class="note">' + temperatureAdvice(stats) + '</p>' +
-    '<p class="route"><strong>Route:</strong> ' + routeFor(result.rating, stats.direction, location) + '</p></section>';
+    '<p class="route"><strong>Route:</strong> ' + routeFor(result.rating, stats.direction, location, stats) + '</p></section>';
 }
 
 function highlightHtml(label, entry, location, emphasis = false, emptyText = "No comparable window", emptyNote = "Check the day cards for passed or incomplete windows.", weakest = false) {
@@ -299,6 +310,7 @@ function highlightHtml(label, entry, location, emphasis = false, emptyText = "No
   const { stats } = entry.result;
   return '<article class="card' + (emphasis ? ' best' : '') + '"><div class="label">' + label + '</div>' +
     '<div class="summary-head"><div class="headline">' + dateLabel(entry.date) + ' · ' + entry.window.name + '</div>' + scoreBadge(entry.result) + '</div>' +
+    gustRouteWarning(stats, entry.result.rating) +
     '<div class="ride-out">' + (weakest ? "Weakest stretch: " : "Ride out: ") + rideRange(entry.result.hour) + '</div>' +
     '<div class="meta">' + reasonFor(stats, entry.result.rating) +
     (entry.result.cold ? ' Below the 5°C ride-out recommendation limit.' : '') + '</div>' +
@@ -308,7 +320,7 @@ function highlightHtml(label, entry, location, emphasis = false, emptyText = "No
     (weakest || entry.result.rating === "avoid" ? '' :
       '<p class="note"><strong>What to wear:</strong> ' + clothingAdvice(stats) + '</p>') +
     (stats.maxTemp >= 23 ? '<p class="note">' + temperatureAdvice(stats) + '</p>' : '') +
-    '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location) + '</p></article>';
+    '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location, stats) + '</p></article>';
 }
 
 function renderForecast(hourly, clock, location = DEFAULT_LOCATION, includeLateNight = false) {
@@ -352,7 +364,7 @@ function renderForecast(hourly, clock, location = DEFAULT_LOCATION, includeLateN
       '/inco: No complete upcoming window can be rated.') + '</p></article>' +
     '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast from Open-Meteo for the selected location. ' +
     'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Forecast cards rate the entire time window. Ride highlights score and show conditions for a two-hour stretch only. ' +
-    'Temperature affects scores: 15–22°C is preferred, 5–9°C can still be recommended with caution, and rides below 5°C are not selected as best or backup. These are comfort rules, not universal safety limits. Early morning and evening rides may need lights; late-night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
+    'Gusts of 50–59 km/h are conditional: only consider a sheltered route, and avoid open coasts, ridges and bridges. Gusts of 60 km/h or more are rated Avoid. Temperature affects scores: 15–22°C is preferred, 5–9°C can still be recommended with caution, and rides below 5°C are not selected as best or backup. These are comfort rules, not universal safety limits. Early morning and evening rides may need lights; late-night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
   return { html: cards.join(""), highlights, final, incomplete };
 }
 
