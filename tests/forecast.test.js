@@ -110,6 +110,36 @@ test("the five scores respect rating thresholds and thunder always scores 1", ()
   assert.equal(scoreFor({ ...calm, thunder: true }), 1);
 });
 
+test("rain preference ranks 13% above 17% while both qualify below 20%", () => {
+  const calm = { wind: 10, gust: 20, rainChance: 13, rain: 0, thunder: false, minTemp: 18, maxTemp: 18 };
+  assert.equal(scoreFor(calm), 5);
+  assert.equal(scoreFor({ ...calm, rainChance: 17 }), 4);
+  assert.equal(scoreFor({ ...calm, rainChance: 15 }), 4);
+  assert.equal(ratingFor({ ...calm, rainChance: 20 }), "caution");
+  assert.equal(scoreFor({ ...calm, rainChance: 20 }), 3);
+  assert.equal(ratingFor({ ...calm, rain: 0.1 }), "caution");
+  assert.equal(scoreFor({ ...calm, rainChance: 80, rain: 0.2 }, false), 5);
+  assert.equal(ratingFor({ ...calm, rainChance: 80, rain: 0.5 }, false), "caution");
+  assert.equal(ratingFor({ ...calm, rainChance: 80, rain: 1.5 }, false), "avoid");
+  assert.equal(scoreFor({ ...calm, thunder: true }, false), 1);
+});
+
+test("dry preference excludes wet ride highlights but rain-tolerant mode ranks them", () => {
+  const hourly = fixture();
+  hourly.temperature_2m.fill(18);
+  hourly.precipitation_probability.fill(25);
+  const clock = { date: "2026-09-24", hour: 9 };
+  const dry = summariseWindow(hourly, "2026-09-25", morning, clock);
+  const tolerant = summariseWindow(hourly, "2026-09-25", morning, clock, false);
+  assert.equal(dry.rating, "caution");
+  assert.equal(dry.rideOutHour, null);
+  assert.equal(tolerant.rating, "good");
+  assert.equal(tolerant.rideOutHour, 6);
+  hourly.precipitation_probability.fill(10);
+  hourly.precipitation.fill(0.1);
+  assert.equal(summariseWindow(hourly, "2026-09-25", morning, clock).rideOutHour, null);
+});
+
 test("temperature adjusts comfort scores without hiding cold but rideable weather", () => {
   const calm = { wind: 10, gust: 20, rainChance: 10, rain: 0, thunder: false };
   for (const [temp, score, rating] of [[4, 2, "caution"], [5, 3, "caution"], [9, 3, "caution"],
@@ -247,7 +277,7 @@ test("dashboard ranks complete future windows and renders the reference card sec
   hourly.wind_gusts_10m.fill(65);
   const unsafe = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(unsafe.highlights, /Best overall<\/div><div class="headline">No ride recommended/);
-  assert.match(unsafe.final, /No complete upcoming window has a suitable 2-hour start/);
+  assert.match(unsafe.final, /No complete upcoming window meets your ride preferences/);
   assert.match(unsafe.html, /rating score-text avoid" aria-label="Ride score 1 out of 5, Avoid exposed routes"/);
   assert.doesNotMatch(unsafe.highlights.split('Best backup')[0], /score-badge/);
 });
