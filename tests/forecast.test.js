@@ -89,7 +89,10 @@ test("rating limits include gusts and rain even when mean wind is light", () => 
   const base = { wind: 12, gust: 20, rainChance: 10, rain: 0, thunder: false };
   assert.equal(ratingFor(base), "good");
   assert.equal(ratingFor({ ...base, gust: 35 }), "caution");
-  assert.equal(ratingFor({ ...base, gust: 50 }), "avoid");
+  assert.equal(ratingFor({ ...base, gust: 50 }), "caution");
+  assert.equal(ratingFor({ ...base, gust: 59 }), "caution");
+  assert.equal(ratingFor({ ...base, gust: 60 }), "avoid");
+  assert.equal(ratingFor({ ...base, gust: 55, wind: 30 }), "avoid");
   assert.equal(ratingFor({ ...base, rainChance: 60 }), "avoid");
   assert.equal(ratingFor({ ...base, thunder: true }), "avoid");
 });
@@ -100,7 +103,10 @@ test("the five scores respect rating thresholds and thunder always scores 1", ()
   assert.equal(scoreFor({ ...calm, gust: 25 }), 4);
   assert.equal(scoreFor({ ...calm, gust: 35 }), 3);
   assert.equal(scoreFor({ ...calm, gust: 42 }), 2);
-  assert.equal(scoreFor({ ...calm, gust: 50 }), 1);
+  assert.equal(scoreFor({ ...calm, gust: 49 }), 2);
+  assert.equal(scoreFor({ ...calm, gust: 50 }), 2);
+  assert.equal(scoreFor({ ...calm, gust: 59 }), 2);
+  assert.equal(scoreFor({ ...calm, gust: 60 }), 1);
   assert.equal(scoreFor({ ...calm, thunder: true }), 1);
 });
 
@@ -238,12 +244,34 @@ test("dashboard ranks complete future windows and renders the reference card sec
   hourly.wind_gusts_10m.fill(36);
   const cautious = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(cautious.html, /rating score-text caution" aria-label="Ride score 3 out of 5, Use caution"/);
-  hourly.wind_gusts_10m.fill(55);
+  hourly.wind_gusts_10m.fill(65);
   const unsafe = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(unsafe.highlights, /Best overall<\/div><div class="headline">No ride recommended/);
   assert.match(unsafe.final, /No complete upcoming window has a suitable 2-hour start/);
   assert.match(unsafe.html, /rating score-text avoid" aria-label="Ride score 1 out of 5, Avoid exposed routes"/);
   assert.doesNotMatch(unsafe.highlights.split('Best backup')[0], /score-badge/);
+});
+
+test("conditional gusts show an orange score and prominent route restriction", () => {
+  const time = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27"].flatMap((date) =>
+    Array.from({ length: 24 }, (_, hour) => date + "T" + String(hour).padStart(2, "0") + ":00"));
+  const hourly = { time };
+  for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
+    hourly[field] = time.map(() => ({ temperature_2m: 18, precipitation_probability: 10, precipitation: 0,
+      wind_speed_10m: 12, wind_gusts_10m: 55, wind_direction_10m: 0, weather_code: 1 })[field]);
+  }
+  const result = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
+  assert.match(result.html, /rating score-text caution" aria-label="Ride score 2 out of 5, Use caution"/);
+  assert.match(result.highlights, /Best overall[\s\S]*score-badge caution" aria-label="Ride score 2 out of 5/);
+  assert.match(result.highlights, /score-badge caution[\s\S]*gust-route-warning[\s\S]*Ride out:/);
+  assert.match(result.html, /rating-reason[\s\S]*gust-route-warning[\s\S]*conditions/);
+  assert.match(result.highlights, /Avoid exposed routes:[\s\S]*Open coast, ridges and bridges/);
+  assert.match(result.highlights, /Only consider a short sheltered local loop/);
+  assert.doesNotMatch(result.highlights, /Shorter sheltered Miramar \/ Seatoun loop/);
+  hourly.wind_gusts_10m.fill(60);
+  const unsafe = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
+  assert.match(unsafe.highlights, /No ride recommended/);
+  assert.doesNotMatch(unsafe.html, /gust-route-warning/);
 });
 
 test("late night is excluded by default and only affects scores and highlights when enabled", () => {
@@ -252,7 +280,7 @@ test("late night is excluded by default and only affects scores and highlights w
   const hourly = { time };
   for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
     hourly[field] = time.map(() => ({ temperature_2m: 18, precipitation_probability: 10, precipitation: 0,
-      wind_speed_10m: 10, wind_gusts_10m: 55, wind_direction_10m: 0, weather_code: 1 })[field]);
+      wind_speed_10m: 10, wind_gusts_10m: 65, wind_direction_10m: 0, weather_code: 1 })[field]);
   }
   for (const date of ["2026-09-24", "2026-09-25", "2026-09-26"]) {
     for (const hour of [22, 23]) hourly.wind_gusts_10m[time.indexOf(date + "T" + hour + ":00")] = 20;
@@ -277,7 +305,7 @@ test("a safe two-hour highlight can occur within a poor full-window forecast", (
   const hourly = { time };
   for (const field of ["temperature_2m", "precipitation_probability", "precipitation", "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m", "weather_code"]) {
     hourly[field] = time.map(() => ({ temperature_2m: 14, precipitation_probability: 10, precipitation: 0,
-      wind_speed_10m: 10, wind_gusts_10m: 55, wind_direction_10m: 0, weather_code: 1 })[field]);
+      wind_speed_10m: 10, wind_gusts_10m: 65, wind_direction_10m: 0, weather_code: 1 })[field]);
   }
   hourly.temperature_2m.fill(18);
   for (const hour of [6, 7, 8, 9]) hourly.wind_gusts_10m[time.indexOf("2026-09-25T0" + hour + ":00")] = 20;
