@@ -93,12 +93,12 @@ function locationMatches(query, results) {
     .slice(0, 8);
 }
 
-function datesToShow(hourly, clock, includeLateNight = false) {
+function datesToShow(hourly, clock, includeLateNight = false, includeEvening = false) {
   const dates = [...new Set(hourly.time.map((stamp) => stamp.slice(0, 10)))];
   const start = dates.indexOf(clock.date);
   if (start < 0) throw new Error("Forecast dates do not include today in Wellington.");
   // The current forecast hour has begun, so only later hours can start a two-hour ride.
-  const offset = clock.hour >= (includeLateNight ? 22 : 19) ? 1 : 0;
+  const offset = clock.hour >= (includeLateNight ? 22 : includeEvening ? 19 : 15) ? 1 : 0;
   const selected = dates.slice(start + offset, start + offset + 3);
   if (selected.length < 3) throw new Error("The forecast has fewer than three upcoming days.");
   return selected;
@@ -123,9 +123,9 @@ function dryRide(stats) {
 }
 
 function ratingFor(stats, avoidRain = true) {
-  if (stats.thunder || stats.wind >= 30 || stats.gust >= 60 ||
+  if (stats.thunder || stats.wind >= 45 || stats.gust >= 60 ||
       (avoidRain && stats.rainChance >= 60) || stats.rain >= 1.5) return "avoid";
-  if (stats.wind >= 20 || stats.gust >= 35 || (avoidRain ? !dryRide(stats) : stats.rain >= 0.4) ||
+  if (stats.wind >= 25 || stats.gust >= 40 || (avoidRain ? !dryRide(stats) : stats.rain >= 0.4) ||
       stats.minTemp < 10 || stats.maxTemp >= 27) return "caution";
   return "good";
 }
@@ -139,14 +139,14 @@ function scoreFor(stats, avoidRain = true) {
     return Math.min(comfortCap, stats.wind < 15 && stats.gust < 25 &&
       (avoidRain ? stats.rainChance < 15 && stats.rain < DRY_RAIN_TOTAL_LIMIT : stats.rain < 0.4) ? 5 : 4);
   }
-  return Math.min(comfortCap, stats.wind < 25 && stats.gust < 42 && stats.rain < 0.8 &&
+  return Math.min(comfortCap, stats.wind < 35 && stats.gust < 50 && stats.rain < 0.8 &&
     (!avoidRain || stats.rainChance < 45) ? 3 : 2);
 }
 
 function reasonFor(stats, rating, avoidRain = true) {
   if (stats.thunder) return "Thunder is forecast in this window.";
-  if (stats.gust >= (rating === "avoid" ? 60 : 35)) return "Gusts could reach " + Math.round(stats.gust) + " km/h.";
-  if (stats.wind >= (rating === "avoid" ? 30 : 20)) return "Wind could reach " + Math.round(stats.wind) + " km/h.";
+  if (stats.gust >= (rating === "avoid" ? 60 : 40)) return "Gusts could reach " + Math.round(stats.gust) + " km/h.";
+  if (stats.wind >= (rating === "avoid" ? 45 : 25)) return "Wind could reach " + Math.round(stats.wind) + " km/h.";
   if (stats.rain >= (rating === "avoid" ? 1.5 : 0.4)) return "Rain could total " + stats.rain.toFixed(1) + " mm.";
   if (avoidRain && stats.rainChance >= DRY_RAIN_CHANCE_LIMIT) return "Rain chance could reach " +
     Math.round(stats.rainChance) + "%, above your 20% preference.";
@@ -186,7 +186,7 @@ function clothingAdvice(stats) {
 }
 
 function conditionalGust(stats, rating) {
-  return rating === "caution" && stats.gust >= 50;
+  return rating === "caution" && (stats.wind >= 35 || stats.gust >= 50);
 }
 
 function gustRouteWarning(stats, rating) {
@@ -338,20 +338,29 @@ function highlightHtml(label, entry, location, emphasis = false, emptyText = "No
     '<p class="route"><strong>Route:</strong> ' + routeFor(entry.result.rating, stats.direction, location, stats, avoidRain) + '</p></article>';
 }
 
-function renderForecast(hourly, clock, location = DEFAULT_LOCATION, includeLateNight = false, avoidRain = true) {
-  const dates = datesToShow(hourly, clock, includeLateNight);
-  const windows = includeLateNight ? [...WINDOWS, LATE_NIGHT_WINDOW] : WINDOWS;
+function renderForecast(hourly, clock, location = DEFAULT_LOCATION, includeLateNight = false, avoidRain = true, includeEvening = false) {
+  const dates = datesToShow(hourly, clock, true, true);
+  const windows = [...WINDOWS, LATE_NIGHT_WINDOW];
+  const recommendationDates = datesToShow(hourly, clock, includeLateNight, includeEvening);
   let incomplete = false;
   const entries = [];
+  for (const date of recommendationDates) {
+    for (const window of windows) {
+      if (window.name === "Evening" && !includeEvening || window.name === "Late night" && !includeLateNight) continue;
+      const result = summariseWindow(hourly, date, window, clock, avoidRain);
+      if (result.state === "ready") entries.push({ date, window, result });
+    }
+  }
+  const forecastEntries = [];
   const cards = dates.map((date) => {
     const slots = windows.map((window) => {
-      const result = summariseWindow(hourly, date, window, clock, avoidRain);
+      const result = summariseWindow(hourly, date, window, clock, false);
       if (result.state === "incomplete") incomplete = true;
-      if (result.state === "ready") entries.push({ date, window, result });
-      return windowHtml(result, window, location, avoidRain);
+      if (result.state === "ready") forecastEntries.push({ date, window, result });
+      return windowHtml(result, window, location, false);
     }).join("");
     return '<article class="card day-card"><div class="day-title"><div><h2>' + dateLabel(date) + '</h2>' +
-      '<p class="meta">' + (date === clock.date ? "Today" : "Ride outlook from 05:00" + (includeLateNight ? " to 23:59" : " to 20:59")) + '</p></div>' +
+      '<p class="meta">' + (date === clock.date ? "Today" : "Ride outlook from 05:00 to 23:59") + '</p></div>' +
       '<span class="badge">' + (date === clock.date ? "Today" : "Upcoming") + '</span></div>' + slots + '</article>';
   });
   const rideOptions = entries.filter((entry) => entry.result.bestPair).map((entry) =>
@@ -360,16 +369,16 @@ function renderForecast(hourly, clock, location = DEFAULT_LOCATION, includeLateN
       weatherBurden(a.result.stats) - weatherBurden(b.result.stats));
   const best = rideOptions[0];
   const backup = rideOptions[1];
-  const weakest = entries.filter((entry) => entry.result.worstPair).map((entry) =>
+  const weakest = forecastEntries.filter((entry) => entry.result.worstPair).map((entry) =>
     ({ date: entry.date, window: entry.window, result: entry.result.worstPair }))
     .sort((a, b) => a.result.score - b.result.score ||
       weatherBurden(b.result.stats) - weatherBurden(a.result.stats))[0];
   const highlights = highlightHtml("Best overall", best, location, true, entries.length ? "No ride recommended" : "Forecast incomplete",
     entries.length ? "No complete window meets your ride preferences. Check again later." : "/inco: No complete upcoming window can be rated.", false, avoidRain) +
     highlightHtml("Best backup", backup, location, false, best ? "No backup available" : "No ride recommended",
-      best ? "No second ride option meets your preferences." : "No complete ride option meets your preferences.", false, avoidRain) +
-    highlightHtml("Weakest option", weakest, location, false, "No comparable stretch",
-      "No complete two-hour stretch is available to compare.", true, avoidRain);
+      best ? "No second ride option meets your preferences." : "No complete ride option meets your preferences.", false, avoidRain);
+  const comparison = highlightHtml("Weakest option", weakest, location, false, "No comparable stretch",
+      "No complete two-hour stretch is available to compare.", true, false);
   const final = '<article class="card"><div class="label">Final call</div><div class="headline">' +
     (best ? dateLabel(best.date) + ' · ' + best.window.name + ' · ' + rideRange(best.result.hour) + ' · ' + best.result.score + '/5' :
       entries.length ? "No ride recommended" : "Forecast incomplete") +
@@ -378,11 +387,11 @@ function renderForecast(hourly, clock, location = DEFAULT_LOCATION, includeLateN
     entries.length ? 'No complete upcoming window meets your ride preferences. Check again later.' :
       '/inco: No complete upcoming window can be rated.') + '</p></article>' +
     '<article class="card"><div class="label">Source note</div><p class="meta">Live hourly forecast from Open-Meteo for the selected location. ' +
-    'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Forecast cards rate the entire time window. Ride highlights score and show conditions for a two-hour stretch only. ' +
-    (avoidRain ? 'Avoid rain is on: highlights require less than 20% hourly rain chance and less than 0.1 mm predicted over the ride. ' :
+    'Score: 5 strong, 4 good, 3 cautious, 2 poor, 1 avoid. Forecast cards rate the entire time window. Recommended rides score and show conditions for a two-hour stretch only. ' +
+    (avoidRain ? 'Avoid rain is on: recommended rides require less than 20% hourly rain chance and less than 0.1 mm predicted over the ride. ' :
       'Avoid rain is off: rain chance does not lower the score, but predicted heavy rain and thunder still do. ') +
-    'Gusts of 50–59 km/h are conditional: only consider a sheltered route, and avoid open coasts, ridges and bridges. Gusts of 60 km/h or more are rated Avoid. Temperature affects scores: 15–22°C is preferred, 5–9°C can still be recommended with caution, and rides below 5°C are not selected as best or backup. These are comfort rules, not universal safety limits. Early morning and evening rides may need lights; late-night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
-  return { html: cards.join(""), highlights, final, incomplete };
+    'Experienced-rider wind limits: below 25 km/h sustained and 40 km/h gusts is favourable; 25–34 km/h sustained or 40–49 km/h gusts means caution. Sustained wind of 35–44 km/h or gusts of 50–59 km/h are conditional: only consider a sheltered route, and avoid open coasts, ridges and bridges. Sustained wind of 45 km/h or more, or gusts of 60 km/h or more, are rated Avoid. Use the worse wind category. These are personal planning thresholds for familiar routes and dry roads. Temperature affects scores: 15–22°C is preferred, 5–9°C can still be recommended with caution, and rides below 5°C are not selected as best or backup. These are comfort rules, not universal safety limits. Early morning and evening rides may need lights; late-night ratings cover weather, not lighting or visibility. Check current conditions and route exposure before leaving.</p></article>';
+  return { html: cards.join(""), highlights, comparison, final, incomplete };
 }
 
 function savedLocation() {
@@ -553,9 +562,10 @@ function setupLocationSearch() {
 function showForecast(hourly, timezone, location) {
   const clock = localClock(new Date(), timezone);
   const result = renderForecast(hourly, clock, location, document.querySelector("#include-late-night").checked,
-    document.querySelector("#avoid-rain").checked);
+    document.querySelector("#avoid-rain").checked, document.querySelector("#include-evening").checked);
   document.querySelector("#forecast-grid").innerHTML = result.html;
   document.querySelector("#highlights").innerHTML = result.highlights;
+  document.querySelector("#forecast-comparison").innerHTML = result.comparison;
   document.querySelector("#final-cards").innerHTML = result.final;
   document.querySelector("#updated").textContent = "Checked " + dateLabel(clock.date) + " · " +
     String(clock.hour).padStart(2, "0") + ":" + String(clock.minute).padStart(2, "0") + " local time";
@@ -582,6 +592,7 @@ async function loadForecast() {
   const grid = document.querySelector("#forecast-grid");
   const highlights = document.querySelector("#highlights");
   const final = document.querySelector("#final-cards");
+  const comparison = document.querySelector("#forecast-comparison");
   const updated = document.querySelector("#updated");
   const button = document.querySelector("#refresh");
   forecastController?.abort();
@@ -597,6 +608,7 @@ async function loadForecast() {
   grid.replaceChildren();
   highlights.replaceChildren();
   final.replaceChildren();
+  comparison.replaceChildren();
   const timer = setTimeout(() => controller.abort(), 12000);
   try {
     const response = await fetch(forecastUrl(location), { cache: "no-store", signal: controller.signal });
@@ -614,6 +626,7 @@ async function loadForecast() {
     grid.replaceChildren();
     highlights.replaceChildren();
     final.replaceChildren();
+    comparison.replaceChildren();
     updated.textContent = "Forecast unavailable";
     status.classList.add("warning");
     status.textContent = "/inco: Live weather is unavailable. Wind and rain data are missing. Try Refresh forecast.";
@@ -637,12 +650,13 @@ if (typeof document !== "undefined") {
   document.querySelector("#rain-preference-hint").textContent = document.querySelector("#avoid-rain").checked ?
     "On: recommend rides below 20% hourly chance and 0.1 mm predicted rain" :
     "Off: light rain is okay; heavy rain and thunder still lower ratings";
+  document.querySelector("#include-evening").checked = false;
   document.querySelector("#include-late-night").checked = false;
   if (rememberedLocation) updateLocationHeader();
   setupLocationSearch();
   document.querySelector("#refresh").addEventListener("click", loadForecast);
   document.querySelector("#avoid-rain").addEventListener("change", updateRidePreferences);
-  document.querySelector("#include-late-night").addEventListener("change", () => {
+  for (const selector of ["#include-evening", "#include-late-night"]) document.querySelector(selector).addEventListener("change", () => {
     if (currentForecast && currentForecast.location === selectedLocation) {
       showForecast(currentForecast.hourly, currentForecast.timezone, selectedLocation);
     }
