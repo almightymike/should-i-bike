@@ -19,7 +19,7 @@
         <div>
           <p class="eyebrow">Should I Bike? · <span id="current-location">Finding nearby location…</span></p>
           <h1 id="page-title">Cycling Dashboard</h1>
-          <p class="sub">A three-day ride check from 05:00–20:59. Optional late night: 21:00–23:59. Temperature affects comfort and ride ranking. Times are local to the selected place.</p>
+          <p class="sub">A three-day ride check from 05:00–16:59. Optional evening: 17:00–20:59 and late night: 21:00–23:59. Temperature affects comfort and ride ranking. Times are local to the selected place.</p>
         </div>
         <div class="toolbar">
           <span class="pill" id="updated">Checking forecast…</span>
@@ -42,6 +42,10 @@
         <label class="ride-option" for="avoid-rain">
           <span class="ride-option-copy"><strong>Avoid rain</strong><small id="rain-preference-hint">On: recommend rides below 20% hourly chance and 0.1 mm predicted rain</small></span>
           <input id="avoid-rain" class="option-switch" type="checkbox" role="switch" aria-describedby="rain-preference-hint" checked>
+        </label>
+        <label class="ride-option" for="include-evening">
+          <span class="ride-option-copy"><strong>Include evening rides</strong><small>17:00–20:59 · Check lights and visibility</small></span>
+          <input id="include-evening" class="option-switch" type="checkbox" role="switch">
         </label>
         <label class="ride-option" for="include-late-night">
           <span class="ride-option-copy"><strong>Include late-night rides</strong><small>21:00–23:59 · Check lights and visibility</small></span>

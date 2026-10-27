@@ -79,8 +79,8 @@ test("the page uses the minimal bicycle favicon", () => {
 
 test("late-night choice controls when the outlook moves to tomorrow", () => {
   const hourly = { time: ["2026-09-24T00:00", "2026-09-25T00:00", "2026-09-26T00:00", "2026-09-27T00:00"] };
-  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 18 }), ["2026-09-24", "2026-09-25", "2026-09-26"]);
-  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 19 }), ["2026-09-25", "2026-09-26", "2026-09-27"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 18 }, false, true), ["2026-09-24", "2026-09-25", "2026-09-26"]);
+  assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 19 }, false, true), ["2026-09-25", "2026-09-26", "2026-09-27"]);
   assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 21 }, true), ["2026-09-24", "2026-09-25", "2026-09-26"]);
   assert.deepEqual(datesToShow(hourly, { date: "2026-09-24", hour: 22 }, true), ["2026-09-25", "2026-09-26", "2026-09-27"]);
 });
@@ -88,11 +88,11 @@ test("late-night choice controls when the outlook moves to tomorrow", () => {
 test("rating limits include gusts and rain even when mean wind is light", () => {
   const base = { wind: 12, gust: 20, rainChance: 10, rain: 0, thunder: false };
   assert.equal(ratingFor(base), "good");
-  assert.equal(ratingFor({ ...base, gust: 35 }), "caution");
+  assert.equal(ratingFor({ ...base, gust: 40 }), "caution");
   assert.equal(ratingFor({ ...base, gust: 50 }), "caution");
   assert.equal(ratingFor({ ...base, gust: 59 }), "caution");
   assert.equal(ratingFor({ ...base, gust: 60 }), "avoid");
-  assert.equal(ratingFor({ ...base, gust: 55, wind: 30 }), "avoid");
+  assert.equal(ratingFor({ ...base, gust: 55, wind: 45 }), "avoid");
   assert.equal(ratingFor({ ...base, rainChance: 60 }), "avoid");
   assert.equal(ratingFor({ ...base, thunder: true }), "avoid");
 });
@@ -101,9 +101,9 @@ test("the five scores respect rating thresholds and thunder always scores 1", ()
   const calm = { wind: 10, gust: 20, rainChance: 10, rain: 0, thunder: false };
   assert.equal(scoreFor(calm), 5);
   assert.equal(scoreFor({ ...calm, gust: 25 }), 4);
-  assert.equal(scoreFor({ ...calm, gust: 35 }), 3);
-  assert.equal(scoreFor({ ...calm, gust: 42 }), 2);
-  assert.equal(scoreFor({ ...calm, gust: 49 }), 2);
+  assert.equal(scoreFor({ ...calm, gust: 40 }), 3);
+  assert.equal(scoreFor({ ...calm, gust: 49 }), 3);
+  assert.equal(scoreFor({ ...calm, gust: 50 }), 2);
   assert.equal(scoreFor({ ...calm, gust: 50 }), 2);
   assert.equal(scoreFor({ ...calm, gust: 59 }), 2);
   assert.equal(scoreFor({ ...calm, gust: 60 }), 1);
@@ -209,7 +209,7 @@ test("ride-out time picks the best consecutive two-hour stretch within the windo
   const hourly = fixture();
   hourly.wind_gusts_10m = [45, 46, 20, 19, 21];
   const result = summariseWindow(hourly, "2026-09-25", morning, { date: "2026-09-24", hour: 9 });
-  assert.equal(result.score, 2);
+  assert.equal(result.score, 3);
   assert.equal(result.rideOutHour, 8);
   assert.equal(result.bestPair.score, 4);
   hourly.temperature_2m = [8, 8, 9, 12, 12];
@@ -245,10 +245,10 @@ test("dashboard ranks complete future windows and renders the reference card sec
   assert.match(result.highlights, /Best backup/);
   assert.match(result.highlights, /Weakest option/);
   assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
-  assert.equal((result.html.match(/class="slot good"/g) || []).length, 12);
+  assert.equal((result.html.match(/class="slot good"/g) || []).length, 9);
   assert.match(result.html, /Early morning/);
   assert.match(result.html, /Late morning/);
-  assert.match(result.html, /Evening/);
+  assert.doesNotMatch(result.html, /Evening/);
   assert.doesNotMatch(result.html, /Late night/);
   assert.doesNotMatch(result.html, /Ride out:/);
   assert.match(result.highlights, /Ride out: 05:00/);
@@ -271,7 +271,7 @@ test("dashboard ranks complete future windows and renders the reference card sec
     { name: "Wellington", admin1: "Wellington Region", country: "New Zealand", country_code: "NZ",
       latitude: -41.28, longitude: 174.78, timezone: "Pacific/Auckland" });
   assert.match(wellington.html, /Oriental Bay \/ Evans Bay/);
-  hourly.wind_gusts_10m.fill(36);
+  hourly.wind_gusts_10m.fill(40);
   const cautious = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(cautious.html, /rating score-text caution" aria-label="Ride score 3 out of 5, Use caution"/);
   hourly.wind_gusts_10m.fill(65);
@@ -298,6 +298,11 @@ test("conditional gusts show an orange score and prominent route restriction", (
   assert.match(result.highlights, /Avoid exposed routes:[\s\S]*Open coast, ridges and bridges/);
   assert.match(result.highlights, /Only consider a short sheltered local loop/);
   assert.doesNotMatch(result.highlights, /Shorter sheltered Miramar \/ Seatoun loop/);
+  hourly.wind_speed_10m.fill(35);
+  hourly.wind_gusts_10m.fill(45);
+  const sustained = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
+  assert.match(sustained.html, /gust-route-warning/);
+  assert.match(sustained.highlights, /Only consider a short sheltered local loop/);
   hourly.wind_gusts_10m.fill(60);
   const unsafe = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(unsafe.highlights, /No ride recommended/);
@@ -345,4 +350,45 @@ test("a safe two-hour highlight can occur within a poor full-window forecast", (
   assert.match(result.highlights, /Best overall[\s\S]*Ride out: 06:00–07:59/);
   assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5/);
   assert.match(result.highlights, /Weakest stretch:[\s\S]*Rain total 0.0 mm/);
+});
+
+
+test("evening opt-in controls recommendations independently of late night", () => {
+  const time = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27"].flatMap(date =>
+    Array.from({ length: 24 }, (_, hour) => date + "T" + String(hour).padStart(2, "0") + ":00"));
+  const hourly = { time };
+  const values = { temperature_2m: 18, precipitation_probability: 10, precipitation: 0,
+    wind_speed_10m: 10, wind_gusts_10m: 65, wind_direction_10m: 0, weather_code: 1 };
+  for (const field of Object.keys(values)) hourly[field] = time.map(() => values[field]);
+  time.forEach((stamp, i) => { if ([17, 18, 19, 20].includes(Number(stamp.slice(11, 13)))) hourly.wind_gusts_10m[i] = 20; });
+  const clock = { date: "2026-09-24", hour: 14 };
+  for (const lateNight of [false, true]) {
+    const off = renderForecast(hourly, clock, undefined, lateNight);
+    assert.doesNotMatch(off.html, /Evening/);
+    assert.match(off.highlights, /No ride recommended/);
+    const on = renderForecast(hourly, clock, undefined, lateNight, true, true);
+    assert.equal((on.html.match(/Evening<\/span>/g) || []).length, 3);
+    assert.match(on.final, /Evening/);
+    assert.equal(on.html.includes("Late night"), lateNight);
+    assert.deepEqual(renderForecast(hourly, clock, undefined, lateNight), off);
+  }
+  assert.equal(datesToShow(hourly, { ...clock, hour: 14 })[0], clock.date);
+  assert.equal(datesToShow(hourly, { ...clock, hour: 15 })[0], "2026-09-25");
+  assert.equal(datesToShow(hourly, { ...clock, hour: 18 }, false, true)[0], clock.date);
+  assert.equal(datesToShow(hourly, { ...clock, hour: 19 }, false, true)[0], "2026-09-25");
+});
+
+
+test("experienced rider wind boundaries use the worse sustained or gust category", () => {
+  const base = { wind: 10, gust: 20, rainChance: 10, rain: 0, thunder: false, minTemp: 18, maxTemp: 18 };
+  for (const avoidRain of [true, false]) {
+    for (const [wind, gust, rating, score] of [
+      [24.9,39.9,"good",4], [25,20,"caution",3], [34.9,49.9,"caution",3],
+      [35,20,"caution",2], [44.9,59.9,"caution",2], [45,20,"avoid",1],
+      [10,40,"caution",3], [10,50,"caution",2], [10,60,"avoid",1]
+    ]) {
+      assert.equal(ratingFor({...base, wind, gust}, avoidRain), rating);
+      assert.equal(scoreFor({...base, wind, gust}, avoidRain), score);
+    }
+  }
 });
