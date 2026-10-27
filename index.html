@@ -46,21 +46,21 @@
           </div>
           <span class="scope-tag">Two-hour rides</span>
         </div>
-      <div class="ride-options" aria-label="Ride preferences">
-        <h3>Preferences</h3>
-        <label class="ride-option" for="avoid-rain">
-          <span class="ride-option-copy"><strong>Avoid rain</strong><small id="rain-preference-hint">On: recommend rides below 20% hourly chance and 0.1 mm predicted rain</small></span>
-          <input id="avoid-rain" class="option-switch" type="checkbox" role="switch" aria-describedby="rain-preference-hint" checked>
-        </label>
-        <label class="ride-option" for="include-evening">
-          <span class="ride-option-copy"><strong>Include evening</strong><small>17:00–20:59 · Check lights and visibility</small></span>
-          <input id="include-evening" class="option-switch" type="checkbox" role="switch">
-        </label>
-        <label class="ride-option" for="include-late-night">
-          <span class="ride-option-copy"><strong>Include late night</strong><small>21:00–23:59 · Check lights and visibility</small></span>
-          <input id="include-late-night" class="option-switch" type="checkbox" role="switch">
-        </label>
-      </div>
+        <div class="ride-options" role="group" aria-label="Recommendation preferences">
+          <label class="ride-option" for="avoid-rain" title="Recommend rides below 20% rain chance and 0.1 mm predicted rain">
+            <input id="avoid-rain" class="option-switch" type="checkbox" role="switch" aria-describedby="rain-preference-hint" checked>
+            <span>Avoid rain</span>
+          </label>
+          <label class="ride-option" for="include-evening" title="Include evening rides: 17:00–20:59">
+            <input id="include-evening" class="option-switch" type="checkbox" role="switch" aria-label="Include evening rides, 17:00–20:59">
+            <span>Evening</span>
+          </label>
+          <label class="ride-option" for="include-late-night" title="Include late-night rides: 21:00–23:59">
+            <input id="include-late-night" class="option-switch" type="checkbox" role="switch" aria-label="Include late-night rides, 21:00–23:59">
+            <span>Late night</span>
+          </label>
+          <span class="sr-only" id="rain-preference-hint">On: recommend rides below 20% hourly chance and 0.1 mm predicted rain</span>
+        </div>
 
         <div class="grid top-grid" id="highlights"></div>
       </section>
