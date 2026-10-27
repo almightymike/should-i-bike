@@ -19,7 +19,7 @@
         <div>
           <p class="eyebrow">Should I Bike? · <span id="current-location">Finding nearby location…</span></p>
           <h1 id="page-title">Cycling Dashboard</h1>
-          <p class="sub">A three-day ride check from 05:00–16:59. Optional evening: 17:00–20:59 and late night: 21:00–23:59. Temperature affects comfort and ride ranking. Times are local to the selected place.</p>
+          <p class="sub">A three-day forecast from 05:00–23:59, with ride recommendations tailored to your preferences. Temperature affects comfort and ride ranking. Times are local to the selected place.</p>
         </div>
         <div class="toolbar">
           <span class="pill" id="updated">Checking forecast…</span>
@@ -37,42 +37,43 @@
         <button class="location-reset" id="use-approx" type="button">Use approximate location</button>
       </section>
 
-      <section class="ride-options" aria-label="Ride preferences">
-        <h2>Ride preferences</h2>
+      <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
+      <section class="dashboard-section highlights-section" aria-labelledby="highlights-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="highlights-heading">Recommended rides</h2>
+            <p>Best and backup rides based on your preferences.</p>
+          </div>
+          <span class="scope-tag">Two-hour rides</span>
+        </div>
+      <div class="ride-options" aria-label="Ride preferences">
+        <h3>Preferences</h3>
         <label class="ride-option" for="avoid-rain">
           <span class="ride-option-copy"><strong>Avoid rain</strong><small id="rain-preference-hint">On: recommend rides below 20% hourly chance and 0.1 mm predicted rain</small></span>
           <input id="avoid-rain" class="option-switch" type="checkbox" role="switch" aria-describedby="rain-preference-hint" checked>
         </label>
         <label class="ride-option" for="include-evening">
-          <span class="ride-option-copy"><strong>Include evening rides</strong><small>17:00–20:59 · Check lights and visibility</small></span>
+          <span class="ride-option-copy"><strong>Include evening</strong><small>17:00–20:59 · Check lights and visibility</small></span>
           <input id="include-evening" class="option-switch" type="checkbox" role="switch">
         </label>
         <label class="ride-option" for="include-late-night">
-          <span class="ride-option-copy"><strong>Include late-night rides</strong><small>21:00–23:59 · Check lights and visibility</small></span>
+          <span class="ride-option-copy"><strong>Include late night</strong><small>21:00–23:59 · Check lights and visibility</small></span>
           <input id="include-late-night" class="option-switch" type="checkbox" role="switch">
         </label>
-      </section>
+      </div>
 
-      <p class="status" id="status" role="status" aria-live="polite">Loading forecast…</p>
-      <section class="dashboard-section highlights-section" aria-labelledby="highlights-heading">
-        <div class="section-heading">
-          <div>
-            <h2 id="highlights-heading">Ride highlights</h2>
-            <p>Best and backup rides, plus the weakest stretch. Scores and conditions cover two hours.</p>
-          </div>
-          <span class="scope-tag">Two-hour rides</span>
-        </div>
         <div class="grid top-grid" id="highlights"></div>
       </section>
       <section class="dashboard-section forecast-section" aria-labelledby="forecast-heading">
         <div class="section-heading">
           <div>
             <h2 id="forecast-heading">Three-day forecast</h2>
-            <p>Four-hour ride windows from 05:00–20:59. Each score covers the full time window.</p>
+            <p>05:00–23:59. Each score covers the full time window.</p>
           </div>
-          <span class="scope-tag">Full time windows</span>
+          <span class="scope-tag">All time windows</span>
         </div>
         <div class="grid days" id="forecast-grid" aria-live="polite"></div>
+        <div id="forecast-comparison"></div>
       </section>
       <section class="final" id="final-cards" aria-label="Final call and forecast notes"></section>
 

@@ -198,7 +198,7 @@ test("passed forecast windows render as compact muted summaries", () => {
   const result = renderForecast(hourly, { date: "2026-09-24", hour: 12 });
   assert.match(result.html, /<details class="slot past">/);
   assert.match(result.html, /class="past-label">Past · 5\/5/);
-  assert.match(result.html, /Wind and rain stay below the caution limits/);
+  assert.match(result.html, /Wind and predicted rain stay below the caution limits/);
   assert.match(result.html, /View details/);
   assert.match(result.html, /Hide details/);
   assert.match(result.html, /This was the forecast rating, not observed weather/);
@@ -243,24 +243,24 @@ test("dashboard ranks complete future windows and renders the reference card sec
   const result = renderForecast(hourly, { date: "2026-09-24", hour: 20 });
   assert.match(result.highlights, /Best overall/);
   assert.match(result.highlights, /Best backup/);
-  assert.match(result.highlights, /Weakest option/);
+  assert.match(result.comparison, /Weakest option/);
   assert.equal((result.html.match(/class="card day-card"/g) || []).length, 3);
-  assert.equal((result.html.match(/class="slot good"/g) || []).length, 9);
+  assert.equal((result.html.match(/class="slot good"/g) || []).length, 11);
   assert.match(result.html, /Early morning/);
   assert.match(result.html, /Late morning/);
-  assert.doesNotMatch(result.html, /Evening/);
-  assert.doesNotMatch(result.html, /Late night/);
+  assert.match(result.html, /Evening/);
+  assert.match(result.html, /Late night/);
   assert.doesNotMatch(result.html, /Ride out:/);
   assert.match(result.highlights, /Ride out: 05:00/);
   assert.match(result.highlights, /Wind 10 km\/h North/);
   assert.match(result.highlights, /Rain total 0.0 mm/);
   assert.match(result.highlights, /Temp 18°C/);
   assert.match(result.highlights, /What to wear:<\/strong> Your usual cycling kit is fine/);
-  assert.doesNotMatch(result.highlights.split('Weakest option')[1], /What to wear:/);
-  assert.match(result.highlights, /Weakest stretch:/);
+  assert.doesNotMatch(result.comparison, /What to wear:/);
+  assert.match(result.comparison, /Weakest stretch:/);
   assert.match(result.final, /Final call/);
   assert.match(result.html, /rating score-text good" aria-label="Ride score 5 out of 5, Favourable"/);
-  assert.match(result.html, /class="rating-reason">Wind and rain stay below the caution limits/);
+  assert.match(result.html, /class="rating-reason">Wind and predicted rain stay below the caution limits/);
   assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5, Favourable"/);
   const elsewhere = renderForecast(hourly, { date: "2026-09-24", hour: 20 },
     { name: "Paris", admin1: "Île-de-France", country: "France", country_code: "FR",
@@ -322,7 +322,7 @@ test("late night is excluded by default and only affects scores and highlights w
   }
   const clock = { date: "2026-09-24", hour: 21 };
   const defaultView = renderForecast(hourly, clock);
-  assert.doesNotMatch(defaultView.html, /Late night/);
+  assert.match(defaultView.html, /Late night/);
   assert.match(defaultView.highlights, /No ride recommended/);
   assert.equal((defaultView.html.match(/class="card day-card"/g) || []).length, 3);
   const optedIn = renderForecast(hourly, clock, undefined, true);
@@ -330,6 +330,7 @@ test("late night is excluded by default and only affects scores and highlights w
   assert.match(optedIn.highlights, /Best overall[\s\S]*Ride out: 22:00–23:59/);
   assert.match(optedIn.highlights, /score-badge good/);
   assert.match(optedIn.final, /Late night/);
+  assert.equal(optedIn.html, defaultView.html);
   const resetView = renderForecast(hourly, clock);
   assert.deepEqual(resetView, defaultView);
 });
@@ -349,7 +350,7 @@ test("a safe two-hour highlight can occur within a poor full-window forecast", (
   assert.doesNotMatch(result.html, /Ride out:/);
   assert.match(result.highlights, /Best overall[\s\S]*Ride out: 06:00–07:59/);
   assert.match(result.highlights, /score-badge good" aria-label="Ride score 5 out of 5/);
-  assert.match(result.highlights, /Weakest stretch:[\s\S]*Rain total 0.0 mm/);
+  assert.match(result.comparison, /Weakest stretch:[\s\S]*Rain total 0.0 mm/);
 });
 
 
@@ -364,12 +365,13 @@ test("evening opt-in controls recommendations independently of late night", () =
   const clock = { date: "2026-09-24", hour: 14 };
   for (const lateNight of [false, true]) {
     const off = renderForecast(hourly, clock, undefined, lateNight);
-    assert.doesNotMatch(off.html, /Evening/);
+    assert.match(off.html, /Evening/);
     assert.match(off.highlights, /No ride recommended/);
     const on = renderForecast(hourly, clock, undefined, lateNight, true, true);
     assert.equal((on.html.match(/Evening<\/span>/g) || []).length, 3);
     assert.match(on.final, /Evening/);
-    assert.equal(on.html.includes("Late night"), lateNight);
+    assert.equal(on.html, off.html);
+    assert.equal(on.comparison, off.comparison);
     assert.deepEqual(renderForecast(hourly, clock, undefined, lateNight), off);
   }
   assert.equal(datesToShow(hourly, { ...clock, hour: 14 })[0], clock.date);
@@ -391,4 +393,36 @@ test("experienced rider wind boundaries use the worse sustained or gust category
       assert.equal(scoreFor({...base, wind, gust}, avoidRain), score);
     }
   }
+});
+
+
+test("all preferences leave forecast dates, ratings and comparison unchanged", () => {
+  const time = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27"].flatMap(date =>
+    Array.from({length:24}, (_,hour) => date + "T" + String(hour).padStart(2,"0") + ":00"));
+  const values = { temperature_2m:18, precipitation_probability:35, precipitation:0.1,
+    wind_speed_10m:10, wind_gusts_10m:20, wind_direction_10m:0, weather_code:1 };
+  const hourly={time};
+  for(const field of Object.keys(values)) hourly[field]=time.map(()=>values[field]);
+  for(const hour of [14,15,18,19,21,22]) {
+    const clock={date:"2026-09-24",hour};
+    const baseline=renderForecast(hourly,clock);
+    for(const evening of [false,true]) for(const night of [false,true]) for(const rain of [false,true]) {
+      const result=renderForecast(hourly,clock,undefined,night,rain,evening);
+      assert.equal(result.html,baseline.html);
+      assert.equal(result.comparison,baseline.comparison);
+      assert.equal(result.incomplete,baseline.incomplete);
+      assert.match(result.html,/Evening/);
+      assert.match(result.html,/Late night/);
+    }
+  }
+});
+
+
+test("preferences are nested under recommended rides, outside the forecast", () => {
+  const html=readFileSync(join(__dirname,"../index.html"),"utf8");
+  const recommended=html.slice(html.indexOf('class="dashboard-section highlights-section"'),html.indexOf('class="dashboard-section forecast-section"'));
+  assert.match(recommended,/Recommended rides/);
+  for(const id of ["avoid-rain","include-evening","include-late-night"]) assert.ok(recommended.includes('id="'+id+'"'));
+  assert.match(html,/All time windows/);
+  assert.match(html,/id="forecast-comparison"/);
 });
